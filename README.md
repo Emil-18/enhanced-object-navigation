@@ -24,7 +24,7 @@ They will also navigate to objects regardless of hierarchy, unless stated otherw
 ### Basic navigation mode commands.
 
 * Left and right arrow: move the navigator object to the previous and next object.
-* Up and down arrow: move to the next object depending on the rotor setting.
+* Up and down arrow: move the navigator object to the previous and next object depending on the rotor setting.
 * Page up and down: move to the next/previous rotor setting.
 * Space: interact with the control where the navigator object is located. This can include pressing a button, checking a check box, or setting focus to an edit field so you can start typing.
 * Enter, applications key, shift+f10: set focus to the navigator object, and then send the pressed key through to the application.
@@ -65,7 +65,7 @@ Press the key on its own to jump to the next object, add shift to jump to the pr
 * t: table.
 * u: group.
 * v: tree or tree item.
-* w: control (areass that can be redefined with the [Enhanced control support add-on](https://github.com/emil-18/enhanced-control-support)).
+* w: control (areas that can be redefined with the [Enhanced control support add-on](https://github.com/emil-18/enhanced-control-support)).
 * x: check box.
 * z: status bar.
 

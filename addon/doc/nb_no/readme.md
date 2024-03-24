@@ -27,7 +27,7 @@ De vil også navigere til objekter uavhengig av hierarki, med mindre annet er op
 ### Grunnleggende kommandoer i navigasjonsmodus.
 
 * Venstre og høyre pil: flytt navigasjonsobjektet til forrige og neste objekt.
-* Pil opp og ned: Flytt til neste objekt avhengig av rotorinnstillingen.
+* Pil opp og ned: Flytt navigasjonsobjektet til forige og neste objekt avhengig av rotorinnstillingen.
 * Side opp og ned: gå til neste/forrige rotorinnstilling.
 * mellomrom: samhandle med kontrollen hvor navigasjonsobjektet er plassert. Dette kan inkludere å trykke på en knapp, merke av i en avkryssingsboks eller sette fokus på et redigeringsfelt slik at du kan begynne å skrive.
 * Enter, applikasjonstast, shift+f10: sett fokus på navigasjonsobjektet, og send deretter den trykkte tasten gjennom til applikasjonen.
