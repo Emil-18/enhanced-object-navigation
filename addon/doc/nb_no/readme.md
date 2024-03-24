@@ -1,3 +1,4 @@
+<div lang = "nb_no">
 # Forbedret objektnavigering.
 * Forfatter: Emil-18.
 * NVDA-kompatibilitet: 2023.1 og utover.
@@ -128,3 +129,4 @@ Når den er merket av, kan du holde nede venstre alt mens du er i søkelisten og
 ### v0.1.
 
 Første utgivelse.
+</div>
