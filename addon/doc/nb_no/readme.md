@@ -1,5 +1,6 @@
 <div lang = "nb_no">
 # Forbedret objektnavigering.
+
 * Forfatter: Emil-18.
 * NVDA-kompatibilitet: 2023.1 og utover.
 * Last ned: [Stabil versjon](https://github.com/Emil-18/enhanced-object-navigation/releases/download/v0.1/enhancedObjectNavigation-0.1.nvda-addon).
