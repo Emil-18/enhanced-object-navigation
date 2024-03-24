@@ -12,8 +12,8 @@ Dette tillegget legger til forbedringer i objektnavigering. Merk at foreløpig f
 
 For å gå inn i navigasjonsmodus, trykk NVDA+shift+control+mellomrom. Dette vil slå navigasjonsmodus på eller av til fokus flyttes.
 Trykk to ganger for å lagre gjeldende tilstand.
-Når navigasjonsmodus er slått på på denne måten, vil den automatisk slås på når fokus flyttes, med mindre fokuset lander i en redigerbar kontroll, et dokument i nett modus eller en virtuell kontroll opprettet av NVDA, for eksempel et OCR-resultatdokument. I disse tilfellene vil den bli slått av.
-Hvis du havnet i en redigeringskontroll, kan du slå den på igjen ved å trykke på escape.
+Når navigasjonsmodus er slått på på denne måten, vil den automatisk slås på når fokus flyttes, med mindre fokuset lander i en redigerbar kontroll, en meny, et dokument som støtter  nett modus eller en virtuell kontroll opprettet av NVDA, for eksempel et OCR-resultatdokument. I disse tilfellene vil den bli slått av.
+Hvis du havnet i en redigeringskontroll eller en meny, kan du slå den på igjen ved å trykke på escape.
 
 Navigasjonsmodus kan slås på i alle applikasjoner.
 
@@ -73,9 +73,9 @@ Trykk på tasten alene for å hoppe til neste objekt, legg til skift for å hopp
 * z: statuslinje.
 
 Alle disse er tilgjengelige i rotoren også.
-## Objektlisten.
+## Søkelisten.
 
-Objektlisten er en virtuell liste som inneholder objektene du har listet opp, for eksempel ved å trykke kontroll+shift+b mens du er i navigasjonsmodus for å liste opp knapper.
+Søkelisten er en virtuell liste som inneholder objektene du har listet opp, for eksempel ved å trykke kontroll+shift+b mens du er i navigasjonsmodus for å liste opp knapper.
 For å liste objekter uavhengig av rolle, trykk NVDA+control+enter. denne kommandoen er tilgjengelig selv når navigasjonsmodus er slått av.
 Siden listen er virtuell, kan du gjøre ting som å liste alle objektene i en meny, uten at menyen lukkes, fordi systemfokuset ikke flyttes.
 

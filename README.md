@@ -9,8 +9,8 @@ This addon adds improvements to object navigation. Note that as of now, it doesn
 
 To enter navigation mode, press NVDA+shift+control+space. This will turn navigation mode on or off until the focus is moved.
 Press it twice to save the current state.
-When navigation mode is turned on in this way, it will automaticly be turned on when focus moves, unless the focus lands in an editable control, a browse mode document, or a virtual control created by NVDA, such as an OCR result document. In these cases, it will be turned off.
-If you landed in an edit control, you can turn it back on by pressing escape.
+When navigation mode is turned on in this way, it will automaticly be turned on when focus moves, unless the focus lands in an editable control, a menu, a document that supports browse mode, or a virtual control created by NVDA, such as an OCR result document. In these cases, it will be turned off.
+If you landed in an editable control or a menu, you can turn it back on by pressing escape.
 
 Navigation mode can be turned on in any application.
 
