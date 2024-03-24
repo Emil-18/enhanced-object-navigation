@@ -49,9 +49,9 @@ Press the key on its own to jump to the next object, add shift to jump to the pr
 * d: document.
 * e: edit controls.
 * f: form field.
-*g: graphic.
-*h: heading (only supported in edge).
-*i: list item.
+* g: graphic.
+* h: heading (only supported in edge).
+* i: list item.
 * j: focusable control.
 * k: link.
 * l: list.
