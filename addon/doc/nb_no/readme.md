@@ -1,4 +1,5 @@
-<div lang = "nb_no">
+<div lang = "_no">
+
 # Forbedret objektnavigering.
 
 * Forfatter: Emil-18.
@@ -51,20 +52,20 @@ Trykk på tasten alene for å hoppe til neste objekt, legg til skift for å hopp
 * d: dokument.
 * e: redigeringskontroller.
 * f: skjemafelt.
-*g: grafikk.
-*h: overskrift (kun støttet i edge).
-*i: listeelement.
+* g: grafikk.
+* h: overskrift (kun støttet i edge).
+* i: listeelement.
 * j:fokuserbar kontroll.
-*k: lenke.
+* k: lenke.
 * l: liste.
 * m: meny, menylinje eller menyelement.
 * n: landemerke.
 * o: verktøylinje.
-*p: tekst.
+* p: tekst.
 * q: fane eller faneelement.
-*r: radioknapp.
-*s: samme objekt.
-*t: tabell.
+* r: radioknapp.
+* s: samme objekt.
+* t: tabell.
 * u: gruppe.
 * v: tre eller treelement.
 * w: kontroll (område som kan omdefineres med [Enhanced control support-tillegget](https://github.com/emil-18/enhanced-control-support)).
@@ -100,6 +101,7 @@ Bevegelsene for denne modusen er som følger.
 * Sveip opp/ned med tre fingre: trykk på f6/shift+f6.
 * sveip opp med to fingre: trykk på escape.
 * Trippeltrykk med to fingre: liste opp alle objekter i vinduet der navigasjonsobjektet er plassert.
+
 ## Innstillinger.
 
 * Bruk navigasjonsmodus som standard.
