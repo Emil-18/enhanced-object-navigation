@@ -1354,7 +1354,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		f(self, previous = True)
 	@script(
 		# Translators: the input help message for the nextRotor script
-		description = _('selects the next rotor'),
+		description = _('selects the next rotor setting'),
 		gesture = ('ts(navigation):2finger_flickRight')
 	)
 	@navigationScript
@@ -1364,7 +1364,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		ui.message(rotorItem['displayName'])
 	@script(
 		# Translators: the input help message for the previousRotor script
-		description = _('selects the previous rotor'),
+		description = _('selects the previous rotor setting'),
 		gesture = ('ts(navigation):2finger_flickLeft')
 	)
 	@navigationScript
@@ -1478,7 +1478,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		ui.message(message)
 	@script(
 		# Translators: the description for a script
-		description = _("Tryes to set focus to the currrent navigator object, and then passes the gesture through to the application")
+		description = _("Tryes to set focus to the current navigator object, and then passes the gesture through to the application")
 	)
 	@navigationScript
 	def script_passThrough(self, gesture):
