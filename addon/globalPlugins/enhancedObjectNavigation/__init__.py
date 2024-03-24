@@ -711,8 +711,6 @@ class SearchInfo():
 		self.searchString = searchString
 class Ancestor(NewUIA):
 	next =previous = firstChild = lastChild = None
-	def findOverlayClasses(self, clsList):
-		super(Ancestor, self).findOverlayClasses(clsList)
 	def _get_parent(self):
 		try:
 			parent = UIAHandler.handler.baseTreeWalker.GetParentElementBuildCache(self.UIAElement, UIAHandler.handler.baseCacheRequest)
