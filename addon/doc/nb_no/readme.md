@@ -1,4 +1,4 @@
-<div lang = "_no">
+<div lang = "no">
 
 # Forbedret objektnavigering.
 
