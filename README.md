@@ -70,9 +70,9 @@ Press the key on its own to jump to the next object, add shift to jump to the pr
 * z: status bar.
 
 All of these are available in the rotor as well.
-## The object list.
+## The search list.
 
-The object list is a virtual list that contains the objects you have listed up, for example by pressing control+shift+b while in navigation mode to list buttons.
+The search list is a virtual list that contains the objects you have listed up, for example by pressing control+shift+b while in navigation mode to list buttons.
 To list objects regardless of role, press NVDA+control+enter. This command is available even when navigation mode is turned off.
 Since the list is virtual, you can do things such as list all the objects in a menu, without the menu closing, because the system focus is not moved.
 
@@ -81,7 +81,7 @@ When you are in the list, you can start typing to filter the list. Hold down lef
 You can use the following commands while in the list.
 
 * enter: move the navigator object to the selected item and close the search list.
-* backspace or delete: remove the search text and return all items to it.
+* backspace or delete: remove the search text and return all items to the list.
 * up and down arrow: move to the next or previous item.
 * left and right arrow: move to the next or previous item starting with a different character.
 * Home and end: move to the beginning and end of the list.
