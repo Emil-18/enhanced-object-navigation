@@ -720,6 +720,7 @@ class Ancestor(NewUIA):
 			return(None)
 		return(Ancestor(UIAElement = parent))
 class Search(NewUIA, VirtualBase):
+	processID = 0
 	def __init__(self, searchInfo = None, index = None, *args, **kwargs):
 		try:
 			UIAElement = searchInfo.elementDict[searchInfo.modifiableNameList[index]]
