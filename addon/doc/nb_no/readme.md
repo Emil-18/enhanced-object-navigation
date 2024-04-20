@@ -1,10 +1,9 @@
-<div lang = "no">
-
+<div lang = "nb_no">
 # Forbedret objektnavigering.
 
 * Forfatter: Emil-18.
 * NVDA-kompatibilitet: 2023.1 og utover.
-* Last ned: [Stabil versjon](https://github.com/Emil-18/enhanced-object-navigation/releases/download/v0.1/enhancedObjectNavigation-0.1.nvda-addon).
+* Last ned: [Stabil versjon](https://github.com/Emil-18/enhanced-object-navigation/releases/download/v0.1.1/enhancedObjectNavigation-0.1.1.nvda-addon).
 
 Dette tillegget legger til forbedringer i objektnavigering. Merk at foreløpig fungerer det ikke i java-applikasjoner.
 
@@ -128,6 +127,10 @@ Når den er merket av, kan du holde nede venstre alt mens du er i søkelisten og
 * Bruk lyder for å indikere om navigasjonsmodus har blitt vekslet. Selvforklarende.
 
 ## forandringslog.
+### v0.1.1
+
+* Gestene i søkelisten bør nå fungere overalt
+* Du kan nå bruke navigasjonsmodus i flere situasjoner
 
 ### v0.1.
 

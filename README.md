@@ -1,7 +1,7 @@
 # Enhanced Object Navigation.
 * Author: Emil-18.
 * NVDA compatibility: 2023.1 and beyond.
-* Download: [Stable version](https://github.com/Emil-18/enhanced-object-navigation/releases/download/v0.1/enhancedObjectNavigation-0.1.nvda-addon).
+* Download: [Stable version](https://github.com/Emil-18/enhanced-object-navigation/releases/download/v0.1.1/enhancedObjectNavigation-0.1.1.nvda-addon).
 
 This addon adds improvements to object navigation. Note that as of now, it doesn't work in java applications.
 
@@ -124,6 +124,11 @@ When checked, You can hold down left alt while you are in the search list and pr
 * Use sounds to indicate if navigation mode has been toggled. Self explanatory.
 
 ## Change log.
+
+### v0.1.1
+
+* The gestures in the search list should now work everywhere
+* You should be able to use navigation mode in more situations
 
 ### v0.1.
 
