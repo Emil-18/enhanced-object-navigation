@@ -137,9 +137,29 @@ def send(name):
 	except:
 		gesture.send()
 def getNearestWindowHandle(element):
+	if not element:
+		return
+	handle = None
 	element = element.BuildUpdatedCache(UIAHandler.handler.baseCacheRequest)
-	return(UIAHandler.handler.getNearestWindowHandle(element))
-
+	handle = UIAHandler.handler.getNearestWindowHandle(element)
+	if handle:
+		return(handle)
+	obj = None
+	unknown = element.GetCurrentPattern(UIAHandler.UIA_LegacyIAccessiblePatternId)
+	if unknown:
+		pattern = unknown.QueryInterface(UIAHandler.IUIAutomationLegacyIAccessiblePattern)
+	if pattern:
+		try:
+			IA = pattern.GetIAccessible()
+		except:
+			IA = None
+		if IA:
+			try:
+				obj = IAccessible.IAccessible(IAccessibleObject = IA, IAccessibleChildID = pattern.CurrentChildId)
+			except:
+				pass
+		if obj:
+			return(obj.windowHandle)
 def setNavToNewUIA(argument):
 	obj = api.getNavigatorObject()
 	if isinstance(obj, NewUIA):
@@ -147,7 +167,6 @@ def setNavToNewUIA(argument):
 	else:
 		obj = NVDAToUIA(obj)
 		api.setNavigatorObject(obj)
-		#import tones; tones.beep(500, 500)
 	yield None
 
 @contextlib.contextmanager(setNavToNewUIA)
@@ -352,8 +371,29 @@ class NewScreenExplorer(screenExplorer.ScreenExplorer):
 if touchHandler.handler: touchHandler.handler.screenExplorer = NewScreenExplorer()
 screenExplorer.ScreenExplorer = NewScreenExplorer
 class NewUIA(UIA.UIA, metaclass = NewDynamicNVDAObjectType):
-	def __init__(self, fromTouch = False, wasNavigatedTo = True, *args, **kwargs):
-		super(NewUIA, self).__init__(*args, **kwargs)
+	def __init__(self, UIAElement = None, windowHandle = None,  fromTouch = False, wasNavigatedTo = True, *args, **kwargs):
+		failed = False
+		try:
+			super(NewUIA, self).__init__(UIAElement = UIAElement, windowHandle = windowHandle, *args, **kwargs)
+		except:
+			failed = True
+		if not UIAElement:
+			raise InvalidNVDAObject
+		if failed:
+			obj = None
+			pattern = self.UIALegacyIAccessiblePattern
+			if pattern:
+				try:
+					IA = pattern.GetIAccessible()
+				except:
+					IA = None
+				if IA:
+					try:
+						obj = IAccessible.IAccessible(IAccessibleObject = IA, IAccessibleChildID = pattern.CurrentChildId)
+					except:
+						pass
+			if obj:
+				super(NewUIA, self).__init__(UIAElement = UIAElement, windowHandle = obj.windowHandle, *args, **kwargs)
 		self.wasNavigatedTo = wasNavigatedTo
 		self.fromTouch = fromTouch
 	def event_becomeNavigatorObject(self, isFocus):
@@ -401,6 +441,43 @@ class NewUIA(UIA.UIA, metaclass = NewDynamicNVDAObjectType):
 	def correctAPIForRelation(self, obj, relation = None):
 		if obj:
 			return(NewUIA(UIAElement = obj.UIAElement))
+	def _get_previous(self):
+		try:
+			previousElement=UIAHandler.handler.baseTreeWalker.GetPreviousSiblingElementBuildCache(self.UIAElement,UIAHandler.handler.baseCacheRequest)
+		except:
+			return None
+		if not previousElement:
+			return None
+		return(NewUIA(UIAElement = previousElement))
+
+	def _get_next(self):
+		try:
+			nextElement=UIAHandler.handler.baseTreeWalker.GetNextSiblingElementBuildCache(self.UIAElement,UIAHandler.handler.baseCacheRequest)
+		except:
+			return None
+		if not nextElement:
+			return None
+		return(NewUIA(UIAElement = nextElement))
+
+	def _get_firstChild(self):
+		try:
+			firstChildElement=UIAHandler.handler.baseTreeWalker.GetFirstChildElementBuildCache(self.UIAElement,UIAHandler.handler.baseCacheRequest)
+		except:
+			return(None)
+		if not firstChildElement:
+			return None
+		return(NewUIA(UIAElement = firstChildElement))
+
+	def _get_parent(self):
+		try:
+			parentElement=UIAHandler.handler.baseTreeWalker.GetParentElementBuildCache(self.UIAElement,UIAHandler.handler.baseCacheRequest)
+		except:
+			parentElement=None
+		if not parentElement:
+			obj = super(NewUIA, self).parent
+			if obj:
+				return(NVDAToUIA(obj))
+		return(NewUIA(UIAElement = parentElement))
 	def _get_NVDAObject(self):
 		if UIAHandler.handler.isUIAWindow(self.windowHandle):
 			return(UIA.UIA(UIAElement = self.UIAElement))
@@ -721,6 +798,7 @@ class Ancestor(NewUIA):
 		return(Ancestor(UIAElement = parent))
 class Search(NewUIA, VirtualBase):
 	processID = 0
+	appModule = appModuleHandler.getAppModuleFromProcessID(0)
 	def __init__(self, searchInfo = None, index = None, *args, **kwargs):
 		try:
 			UIAElement = searchInfo.elementDict[searchInfo.modifiableNameList[index]]
@@ -862,7 +940,7 @@ class Search(NewUIA, VirtualBase):
 			if obj:
 				eventHandler.executeEvent('gainFocus', obj)
 				return
-		while obj and obj.name[0].lower() == self.name[0].lower():
+		while obj and obj.name and obj.name[0].lower() == self.name[0].lower():
 			obj = obj.next
 		if obj:
 			eventHandler.executeEvent('gainFocus', obj)
