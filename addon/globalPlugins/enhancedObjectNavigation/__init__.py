@@ -1335,23 +1335,14 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			self.bindGesture('kb:shift+'+key, 'previous'+scriptName)
 			self.bindGesture('kb:shift+control+'+key, scriptName+'List')
 	def event_gainFocus(self, obj, nextHandler):
-		self.wasInSearchList = isinstance(api.getFocusObject(), VirtualBase)
 		if not config.conf["enhancedObjectNavigation"]["useByDefault"] or not isinstance(obj, window.Window):
 			self.turnOff()
 			return(nextHandler())
 		if isinstance(obj, cursorManager.CursorManager):
 			self.turnOff()
 			return(nextHandler())
-		if obj.treeInterceptor and not self.wasInSearchList:
+		if obj.treeInterceptor and not obj.treeInterceptor.passThrough:
 			self.turnOff()
-			return(nextHandler())
-		disallowedRoles = [
-			controlTypes.Role.MENUITEM,
-			controlTypes.Role.MENUBAR,
-			controlTypes.Role.POPUPMENU
-		]
-		if (obj.role in disallowedRoles or obj._hasNavigableText) and not self.wasInSearchList:
-			self.turnOff(forms = True)
 			return(nextHandler())
 		self.turnOn()
 		nextHandler()
@@ -1467,9 +1458,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			ui.message(message)
 			config.conf['enhancedObjectNavigation']['useByDefault'] = self.navigation
 			return
+		obj = api.getNavigatorObject()
 		if not self.navigation:
 			self.turnOn()
-			obj = api.getNavigatorObject()
 			if not isinstance(obj, NewUIA):
 				api.setNavigatorObject(NVDAToUIA(obj))
 		else:
