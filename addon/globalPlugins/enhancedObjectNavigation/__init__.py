@@ -1314,6 +1314,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			self.bindGesture("kb:upArrow", "parent")
 			self.bindGesture("kb:downArrow", "firstChild")
 		self.bindGesture('kb:space', 'doAction')
+		self.bindGesture("kb:shift+space", "secondaryAction")
 		passThroughKeys = [
 			"kb:enter",
 			"kb:numbpadEnter",
@@ -1354,7 +1355,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			return(nextHandler())
 		self.turnOn()
 		nextHandler()
-		self.turnOn()
 	@script(
 		# Translators: the input help message for the UIANavigation script
 		description = _("Turns on UIA navigation. This allows you to navigate through all UIAutomation elements with the object navigation commands. This is most useful for testing purposes."),
@@ -1455,8 +1455,12 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		description = _('Turns on or off navigation mode. If pressed twice, the state of the navigation mode is saved'),
 		gesture = 'kb:nvda+shift+control+space'
 	)
-	@navigationScript
 	def script_navigationMode(self, gesture):
+		focus = api.getFocusObject()
+		if focus.treeInterceptor and not focus.treeInterceptor.passThrough:
+			# Translators: The message reported when the user is in browse mode and tries to turn on navigation mode
+			ui.message(_("Please disable browse mode with NVDA + space before using navigation mode"))
+			return
 		if getLastScriptRepeatCount():
 			# Translators: the message reported when saving the state of the navigation mode
 			message = _('Saved')
@@ -1470,6 +1474,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				api.setNavigatorObject(NVDAToUIA(obj))
 		else:
 			self.turnOff()
+			if isinstance(obj, NewUIA):
+				api.setNavigatorObject(obj.NVDAObject)
 	@script(
 		# Translators: the input help message for the search script
 		description = _('Lists every object in the current window, control or on the screen, depending on what you have selected in the settings.'),
@@ -1501,7 +1507,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		if isinstance(gesture, touchHandler.TouchInputGesture):
 			touchHandler.handler.notifyInteraction(obj)
 	@script(
-		gestures = ('ts(navigation):tripple_tap', "kb:shift+space"),
+		gesture = ('ts(navigation):tripple_tap'),
 		# Translators: The description for a script
 		description = _('Selects, unselects, or decreases the value of the current navigator object depending on what the object supports')
 	)
