@@ -1027,7 +1027,6 @@ def timerFunc(self):
 		pass
 timer = wx.Timer(gui.mainFrame)
 gui.mainFrame.Bind(wx.EVT_TIMER, handler = timerFunc, source = timer)
-timer.Start(50)
 def NVDAToUIA(obj, useMSAA = False):
 	if not isinstance(obj, window.Window):
 		return(None)
@@ -1107,10 +1106,12 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def __init__(self, *args, **kwargs):
 		super(GlobalPlugin, self).__init__(*args, **kwargs)
 		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.append(EnhancedObjectNavigationSettingsPanel)
+		timer.Start(50)
 		if touchHandler.handler: touchHandler.handler.setMode('navigation')
 	def terminate(self, *args, **kwargs):
 		super(GlobalPlugin, self).terminate(*args, **kwargs)
 		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.remove(EnhancedObjectNavigationSettingsPanel)
+		timer.Stop()
 	def getScript(self, gesture):
 		obj = api.getFocusObject()
 		# Normaly, the GlobalPlugin scripts overwrites the NVDAObject scripts, but we don't want this when in the search list, as no of our GlobalPlugin scripts should be used in the search list,
