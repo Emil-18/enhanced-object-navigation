@@ -35,6 +35,7 @@ from gui.settingsDialogs import SettingsDialog
 from NVDAObjects import *
 from scriptHandler import script, getLastScriptRepeatCount
 from time import sleep
+from treeInterceptorHandler import post_browseModeStateChange
 from UIAHandler import utils as UIAUtils
 from .extraFunctions import NewDynamicNVDAObjectType, VirtualBase
 translate = _
@@ -1108,10 +1109,12 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.append(EnhancedObjectNavigationSettingsPanel)
 		timer.Start(50)
 		if touchHandler.handler: touchHandler.handler.setMode('navigation')
+		post_browseModeStateChange.register(self.post_browseModeStateChange_handler)
 	def terminate(self, *args, **kwargs):
 		super(GlobalPlugin, self).terminate(*args, **kwargs)
 		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.remove(EnhancedObjectNavigationSettingsPanel)
 		timer.Stop()
+		post_browseModeStateChange.unregister(self.post_browseModeStateChange_handler)
 	def getScript(self, gesture):
 		obj = api.getFocusObject()
 		# Normaly, the GlobalPlugin scripts overwrites the NVDAObject scripts, but we don't want this when in the search list, as no of our GlobalPlugin scripts should be used in the search list,
@@ -1192,12 +1195,16 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			walker = walker()
 		element = previousElement(obj.UIAElement, walker)
 		if not element:
-			ui.message(translate('No previous'))
-			return(None)
+			ui.message(translate("No previous"))
+			return
 		element = element.BuildUpdatedCache(cacheRequest)
 		newObj = NewUIA(UIAElement = element)
 		api.setNavigatorObject(newObj)
 		speech.speech.speakObject(newObj, reason = controlTypes.OutputReason.FOCUS)
+	def post_browseModeStateChange_handler(self):
+		obj = api.getFocusObject()
+		if obj.treeInterceptor and not obj.treeInterceptor.passThrough:
+			self.turnOff(silent = True)
 	def _report(self, on, forms = False):
 		if not config.conf["enhancedObjectNavigation"]["useSounds"]:
 			if on:
@@ -1205,10 +1212,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				message = _("Navigation mode")
 			else:
 				obj = api.getFocusObject()
-				if obj.treeInterceptor and not obj.treeInterceptor.passThrough:
-					message = translate("Focus mode")
-				else:
+				if obj.treeInterceptor and not  obj.treeInterceptor.passThrough:
 					message = translate("Browse mode")
+				else:
+					message = translate("Focus mode")
 			ui.message(message)
 			return
 		if on:
@@ -1229,7 +1236,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self.forms = False
 		self.bind()
 		self._report(True)
-	def turnOff(self, forms = False):
+	def turnOff(self, forms = False, silent = False):
 		if not self.navigation:
 			return
 		self.clearGestureBindings()
@@ -1238,11 +1245,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		if forms:
 			self.forms = True
 			self.bindGesture('kb:escape', 'escapeForms')
-			self._report(False, forms=True)
-		if self.navigation:
-			self.navigation = False
-		if not forms:
-			self._report(False)
+		self.navigation = False
+		if not silent:
+			self._report(False, forms = forms)
 	keyList = [
 		('tab', 'ts(navigation):3finger_flickRight'),
 		('shift+tab', 'ts(navigation):3finger_flickLeft'),
@@ -1341,8 +1346,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		if isinstance(obj, cursorManager.CursorManager):
 			self.turnOff()
 			return(nextHandler())
-		if obj.treeInterceptor and not obj.treeInterceptor.passThrough:
+		treeInterceptor = obj.treeInterceptor
+		if treeInterceptor and not treeInterceptor.passThrough:
 			self.turnOff()
+			return(nextHandler())
+		if treeInterceptor and treeInterceptor.passThrough:
 			return(nextHandler())
 		self.turnOn()
 		nextHandler()
