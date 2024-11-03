@@ -18,6 +18,7 @@ import keyboardHandler
 import locationHelper
 import nvwave
 import os
+import queueHandler
 import random
 import screenExplorer
 import speech
@@ -1104,12 +1105,15 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	forms = False
 	wasInSearchList = False
 	index = 0
+	# To prevent spam on the navigation functions from the user, wich can cause UIA to lag
+	lastArgs = []
 	def __init__(self, *args, **kwargs):
 		super(GlobalPlugin, self).__init__(*args, **kwargs)
 		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.append(EnhancedObjectNavigationSettingsPanel)
 		timer.Start(50)
 		if touchHandler.handler: touchHandler.handler.setMode('navigation')
 		post_browseModeStateChange.register(self.post_browseModeStateChange_handler)
+		
 	def terminate(self, *args, **kwargs):
 		super(GlobalPlugin, self).terminate(*args, **kwargs)
 		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.remove(EnhancedObjectNavigationSettingsPanel)
@@ -1178,29 +1182,59 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			supported = self.rotor[index].get('isSupported')
 		self.index = index
 	def nextObject(self, obj, walker = simpleWalker):
+		direction = 1
+		args = [obj, walker if not hasattr(walker, "__call__") else walker(), direction]
+		if args in self.lastArgs:
+			return
+		threading.Thread(target = self._nextObject, args = [obj], kwargs = {"walker": walker}).start()
+		self.lastArgs.append([obj, walker, direction])
+
+	def previousObject(self, obj, walker = simpleWalker):
+		direction = -1
+		
+		args = [obj, walker if not hasattr(walker, "__call__") else walker(), direction]
+		if args in self.lastArgs:
+			return
+		threading.Thread(target = self._previousObject, args = [obj], kwargs = {"walker": walker}).start()
+		self.lastArgs.append([obj, walker, direction])
+	def _nextObject(self, obj, walker = simpleWalker):
+		nav = api.getNavigatorObject()
+		focus = api.getFocusObject()
 		if hasattr(walker, '__call__'):
 			walker = walker()
 		element = nextElement(obj.UIAElement, walker)
+		direction = 1
+		args = [obj, walker, direction]
+		if args in self.lastArgs:
+			self.lastArgs.remove(args)
+		if focus != api.getFocusObject() or nav != api.getNavigatorObject():
+			return
 		if not element:
-			ui.message(translate('No next'))
-			return(None)
-		element = element.BuildUpdatedCache(cacheRequest)
-		newObj = NewUIA(UIAElement = element)
-		api.setNavigatorObject(newObj)
-		speech.speech.speakObject(newObj, reason = controlTypes.OutputReason.FOCUS)
-	def previousObject(self, obj, walker = simpleWalker):
-		if not isinstance(obj, NewUIA):
-			obj = NVDAToUIA(obj)
-		if hasattr(walker, '__call__'):
-			walker = walker()
-		element = previousElement(obj.UIAElement, walker)
-		if not element:
-			ui.message(translate("No previous"))
+			queueHandler.queueFunction(queueHandler.eventQueue, ui.message, translate("No next"))
 			return
 		element = element.BuildUpdatedCache(cacheRequest)
 		newObj = NewUIA(UIAElement = element)
-		api.setNavigatorObject(newObj)
-		speech.speech.speakObject(newObj, reason = controlTypes.OutputReason.FOCUS)
+		queueHandler.queueFunction(queueHandler.eventQueue, api.setNavigatorObject, newObj)
+		queueHandler.queueFunction(queueHandler.eventQueue, speech.speech.speakObject, newObj, reason = controlTypes.OutputReason.FOCUS)
+	def _previousObject(self, obj, walker = simpleWalker):
+		nav = api.getNavigatorObject()
+		focus = api.getFocusObject()
+		if hasattr(walker, '__call__'):
+			walker = walker()
+		element = previousElement(obj.UIAElement, walker)
+		direction = -1
+		args = [obj, walker, direction]
+		if args in self.lastArgs:
+			self.lastArgs.remove(args)
+		if focus != api.getFocusObject() or nav != api.getNavigatorObject():
+			return
+		if not element:
+			queueHandler.queueFunction(queueHandler.eventQueue, ui.message, translate("No previous"))
+			return
+		element = element.BuildUpdatedCache(cacheRequest)
+		newObj = NewUIA(UIAElement = element)
+		queueHandler.queueFunction(queueHandler.eventQueue, api.setNavigatorObject, newObj)
+		queueHandler.queueFunction(queueHandler.eventQueue, speech.speech.speakObject, newObj, reason = controlTypes.OutputReason.FOCUS)
 	def post_browseModeStateChange_handler(self):
 		obj = api.getFocusObject()
 		if obj.treeInterceptor and not obj.treeInterceptor.passThrough:
