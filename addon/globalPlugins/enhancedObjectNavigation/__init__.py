@@ -1183,7 +1183,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self.index = index
 	def nextObject(self, obj, walker = simpleWalker):
 		direction = 1
-		args = [obj, walker if not hasattr(walker, "__call__") else walker(), direction]
+		args = [obj, walker, direction]
 		if args in self.lastArgs:
 			return
 		threading.Thread(target = self._nextObject, args = [obj], kwargs = {"walker": walker}).start()
@@ -1191,8 +1191,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	def previousObject(self, obj, walker = simpleWalker):
 		direction = -1
-		
-		args = [obj, walker if not hasattr(walker, "__call__") else walker(), direction]
+		args = [obj, walker, direction]
 		if args in self.lastArgs:
 			return
 		threading.Thread(target = self._previousObject, args = [obj], kwargs = {"walker": walker}).start()
@@ -1200,11 +1199,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def _nextObject(self, obj, walker = simpleWalker):
 		nav = api.getNavigatorObject()
 		focus = api.getFocusObject()
+		direction = 1
+		args = [obj, walker, direction]
 		if hasattr(walker, '__call__'):
 			walker = walker()
 		element = nextElement(obj.UIAElement, walker)
-		direction = 1
-		args = [obj, walker, direction]
 		if args in self.lastArgs:
 			self.lastArgs.remove(args)
 		if focus != api.getFocusObject() or nav != api.getNavigatorObject():
@@ -1219,11 +1218,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def _previousObject(self, obj, walker = simpleWalker):
 		nav = api.getNavigatorObject()
 		focus = api.getFocusObject()
+		direction = -1
+		args = [obj, walker, direction]
 		if hasattr(walker, '__call__'):
 			walker = walker()
 		element = previousElement(obj.UIAElement, walker)
-		direction = -1
-		args = [obj, walker, direction]
 		if args in self.lastArgs:
 			self.lastArgs.remove(args)
 		if focus != api.getFocusObject() or nav != api.getNavigatorObject():
