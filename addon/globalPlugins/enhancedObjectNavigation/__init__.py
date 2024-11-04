@@ -13,6 +13,7 @@ import copy
 import cursorManager
 import globalPluginHandler
 import gui
+import IAccessibleHandler
 import inputCore
 import keyboardHandler
 import locationHelper
@@ -20,6 +21,7 @@ import nvwave
 import os
 import queueHandler
 import random
+import review
 import screenExplorer
 import speech
 import threading
@@ -492,6 +494,10 @@ class NewUIA(UIA.UIA, metaclass = NewDynamicNVDAObjectType):
 				IA = None
 			if IA:
 				try:
+					IA = IAccessibleHandler.normalizeIAccessible(IA, pattern.CurrentChildId)
+				except:
+					pass
+				try:
 					obj = IAccessible.IAccessible(IAccessibleObject = IA, IAccessibleChildID = pattern.CurrentChildId)
 				except:
 					pass
@@ -907,14 +913,32 @@ class Search(NewUIA, VirtualBase):
 		index = self.index+1
 		d = {'indexInGroup': index, 'similarItemsInGroup': len(self.searchInfo.modifiableNameList)}
 		return(d)
+	def _get_shouldSetFocus(self):
+		return(config.conf['enhancedObjectNavigation']['setFocus'])
 	def doAction(self, index = 0):
 		eventHandler.executeEvent('gainFocus', self.focus)
 		speech.speech.cancelSpeech()
 		obj = NewUIA(UIAElement = self.UIAElement, windowHandle = self.windowHandle)
+		if self.shouldSetFocus:
+			tempObj = obj.NVDAObject
+			while tempObj.parent and not tempObj.treeInterceptor:
+				tempObj = tempObj.parent
+			documentPosition = review.getDocumentPosition(tempObj)
+			if documentPosition and not tempObj.treeInterceptor.passThrough:
+				documentPosition = documentPosition[0]
+				documentPosition.expand(textInfos.UNIT_LINE)
+				speech.speech.speakTextInfo(documentPosition, reason = controlTypes.OutputReason.FOCUS)
+				documentPosition.collapse()
+				tempObj.treeInterceptor.selection = documentPosition
+				return
+			obj.setFocus()
+			newObj = obj.NVDAObject if obj.NVDAObject else obj
+			if newObj != api.getFocusObject():
+				wx.CallLater(10, api.setNavigatorObject, newObj)
+				return
 		api.setNavigatorObject(obj)
 		speech.speech.speakObject(obj, reason = controlTypes.OutputReason.FOCUS)
-		if config.conf['enhancedObjectNavigation']['setFocus']:
-			obj.setFocus()
+
 		if config.conf['enhancedObjectNavigation']['activate']:
 			obj.doAction()
 	@script(
@@ -1493,12 +1517,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			# Translators: The message reported when the user is in browse mode and tries to turn on navigation mode
 			ui.message(_("Please disable browse mode with NVDA + space before using navigation mode"))
 			return
-		if getLastScriptRepeatCount():
-			# Translators: the message reported when saving the state of the navigation mode
-			message = _('Saved')
-			ui.message(message)
-			config.conf['enhancedObjectNavigation']['useByDefault'] = self.navigation
-			return
+		config.conf['enhancedObjectNavigation']['useByDefault'] = not self.navigation
 		obj = api.getNavigatorObject()
 		if not self.navigation:
 			self.turnOn()
@@ -1506,7 +1525,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				api.setNavigatorObject(NVDAToUIA(obj))
 		else:
 			self.turnOff()
-			if isinstance(obj, NewUIA):
+			if isinstance(obj, NewUIA) and obj.NVDAObject:
 				api.setNavigatorObject(obj.NVDAObject)
 	@script(
 		# Translators: the input help message for the search script
