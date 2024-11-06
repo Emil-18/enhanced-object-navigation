@@ -12,6 +12,7 @@ import controlTypes
 import copy
 import cursorManager
 import globalPluginHandler
+import globalVars
 import gui
 import IAccessibleHandler
 import inputCore
@@ -64,7 +65,8 @@ confSpec = {
 	'autoUpdate': 'boolean(default=True)',
 	'altMode': 'boolean(default=True)',
 	"useSounds": "boolean(default=True)",
-	"advancedNavigation": "boolean(default=False)"
+	"advancedNavigation": "boolean(default=False)",
+	"freezeWhenNavigating": "boolean(default=False)"
 }
 config.conf.spec['enhancedObjectNavigation'] = confSpec
 internalScopeValues = ['window', 'desktop', 'container']
@@ -121,6 +123,10 @@ class EnhancedObjectNavigationSettingsPanel(gui.SettingsPanel):
 		label = _("Use sounds to indicate if navigation mode has been toggled")
 		self.sounds = settings.addItem(wx.CheckBox(self, label = label))
 		self.sounds.SetValue(config.conf["enhancedObjectNavigation"]["useSounds"])
+		# Translators: a label for a check box
+		label = _("disable asynchronous navigation, useful if you incounter problems while navigating, such as NVDA becoming silent or playing error sounds")
+		self.freeze = settings.addItem(wx.CheckBox( self, label = label))
+		self.freeze.SetValue(config.conf["enhancedObjectNavigation"]["freezeWhenNavigating"])
 	def onSave(self):
 		config.conf['enhancedObjectNavigation']['useByDefault'] = self.navigationMode.GetValue()
 		config.conf['enhancedObjectNavigation']['sortInTabOrder'] = self.sortInTabOrder.GetValue()
@@ -132,6 +138,7 @@ class EnhancedObjectNavigationSettingsPanel(gui.SettingsPanel):
 		config.conf['enhancedObjectNavigation']['autoUpdate'] = self.autoUpdate.GetValue()
 		config.conf['enhancedObjectNavigation']['altMode'] = self.altMode.GetValue()
 		config.conf["enhancedObjectNavigation"]["useSounds"] = self.sounds.GetValue()
+		config.conf["enhancedObjectNavigation"]["freezeWhenNavigating"] = self.freeze.GetValue()
 def sort(i):
 	return(i[:-6].lower())
 def send(name):
@@ -921,10 +928,14 @@ class Search(NewUIA, VirtualBase):
 		obj = NewUIA(UIAElement = self.UIAElement, windowHandle = self.windowHandle)
 		if self.shouldSetFocus:
 			tempObj = obj.NVDAObject
-			while tempObj.parent and not tempObj.treeInterceptor:
+			if not tempObj:
+				tempObj = api.getDesktopObject()
+			focus = tempObj
+			while tempObj.parent and not review.getDocumentPosition(tempObj)													:
 				tempObj = tempObj.parent
 			documentPosition = review.getDocumentPosition(tempObj)
-			if documentPosition and not tempObj.treeInterceptor.passThrough:
+			speech.speech.speak(str(documentPosition and not tempObj.treeInterceptor.disableAutoPassThrough))
+			if documentPosition and not tempObj.treeInterceptor.disableAutoPassThrough:# and api.getFocusObject().treeInterceptor == tempObj.treeInterceptor:
 				documentPosition = documentPosition[0]
 				documentPosition.expand(textInfos.UNIT_LINE)
 				speech.speech.speakTextInfo(documentPosition, reason = controlTypes.OutputReason.FOCUS)
@@ -1206,6 +1217,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			supported = self.rotor[index].get('isSupported')
 		self.index = index
 	def nextObject(self, obj, walker = simpleWalker):
+		if globalVars.appPid == obj.processID or config.conf["enhancedObjectNavigation"]["freezeWhenNavigating"]:
+			self._nextObject(obj, walker)
+			return
 		direction = 1
 		args = [obj, walker, direction]
 		if args in self.lastArgs:
@@ -1214,6 +1228,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self.lastArgs.append([obj, walker, direction])
 
 	def previousObject(self, obj, walker = simpleWalker):
+		if globalVars.appPid == obj.processID or config.conf["enhancedObjectNavigation"]["freezeWhenNavigating"]:
+			self._previousObject(obj, walker)
+			return
 		direction = -1
 		args = [obj, walker, direction]
 		if args in self.lastArgs:
