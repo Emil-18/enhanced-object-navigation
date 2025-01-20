@@ -1654,7 +1654,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		ui.message(rotorItem['displayName'])
 	@script(
 		# Translators: the input help message for the navigationMode script
-		description = _('Turns on or off navigation mode. If pressed twice, the state of the navigation mode is saved'),
+		description = _('Turns on or off navigation mode.'),
 		gesture = 'kb:nvda+shift+control+space'
 	)
 	def script_navigationMode(self, gesture):
