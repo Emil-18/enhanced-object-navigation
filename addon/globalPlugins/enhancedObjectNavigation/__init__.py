@@ -5,18 +5,20 @@ addonHandler.initTranslation()
 import api
 import appModuleHandler
 import braille
+import browseMode
 import ctypes
 import config
 import contextlib
 import controlTypes
-import copy
 import cursorManager
+import editableText
 import globalPluginHandler
 import globalVars
 import gui
 import IAccessibleHandler
 import inputCore
 import keyboardHandler
+import languageHandler
 import locationHelper
 import nvwave
 import os
@@ -26,6 +28,7 @@ import review
 import screenExplorer
 import speech
 import threading
+import time
 import touchHandler
 import ui
 import UIAHandler
@@ -36,6 +39,7 @@ from ctypes.wintypes import POINT, RECT
 from controlTypes import Role
 from globalCommands import *
 from gui.settingsDialogs import SettingsDialog
+from logHandler import log
 from NVDAObjects import *
 from scriptHandler import script, getLastScriptRepeatCount
 from time import sleep
@@ -58,10 +62,8 @@ confSpec = {
 	'useByDefault': 'boolean(default=False)',
 	'sortInTabOrder': 'boolean(default=False)',
 	'scope': 'string(default="window")',
-	'enhancedDetection': 'boolean(default=True)',
+	'enhancedDetection': 'boolean(default=False)',
 	'context': 'boolean(default=False)',
-	'setFocus': 'boolean(default=False)',
-	'activate': 'boolean(default=False)',
 	'autoUpdate': 'boolean(default=True)',
 	'altMode': 'boolean(default=True)',
 	"useSounds": "boolean(default=True)",
@@ -76,7 +78,7 @@ scopeValues = [
 	# Translators: A choice in a combo box
 	_('all objects'),
 	# Translators: A choice in a combo box
-	_('the current control that the navigator object is in, e.g a list or a web page')
+	_("the current browse mode document, if available")
 ]
 class EnhancedObjectNavigationSettingsPanel(gui.SettingsPanel):
 	# Translators: the title of a settings panel
@@ -104,14 +106,6 @@ class EnhancedObjectNavigationSettingsPanel(gui.SettingsPanel):
 		self.context = settings.addItem(wx.CheckBox(self, label = label))
 		self.context.SetValue(config.conf['enhancedObjectNavigation']['context'])
 		# Translators: The label for a check box
-		label = _('Set focus to the item selected in the search list')
-		self.setFocus = settings.addItem(wx.CheckBox(self, label = label))
-		self.setFocus.SetValue(config.conf['enhancedObjectNavigation']['setFocus'])
-		# Translators: The label for a check box
-		label = _('Activate the item selected in the search list')
-		self.activate = settings.addItem(wx.CheckBox(self, label = label))
-		self.activate.SetValue(config.conf['enhancedObjectNavigation']['activate'])
-		# Translators: The label for a check box
 		label = _('When in navigation mode or in the search list, automatically update the braille display when the content of the shown object changes. Disable if you incounter problems using the add-on, such as lag.')
 		self.autoUpdate = settings.addItem(wx.CheckBox(self, label = label))
 		self.autoUpdate.SetValue(config.conf['enhancedObjectNavigation']['autoUpdate'])
@@ -133,8 +127,6 @@ class EnhancedObjectNavigationSettingsPanel(gui.SettingsPanel):
 		config.conf['enhancedObjectNavigation']['scope'] = internalScopeValues[self.scope.GetSelection()]
 		config.conf['enhancedObjectNavigation']['enhancedDetection'] = self.enhancedDetection.GetValue()
 		config.conf['enhancedObjectNavigation']['context'] = self.context.GetValue()
-		config.conf['enhancedObjectNavigation']['setFocus'] = self.setFocus.GetValue()
-		config.conf['enhancedObjectNavigation']['activate'] = self.activate.GetValue()
 		config.conf['enhancedObjectNavigation']['autoUpdate'] = self.autoUpdate.GetValue()
 		config.conf['enhancedObjectNavigation']['altMode'] = self.altMode.GetValue()
 		config.conf["enhancedObjectNavigation"]["useSounds"] = self.sounds.GetValue()
@@ -183,15 +175,38 @@ def setNavToNewUIA(argument):
 @contextlib.contextmanager(setNavToNewUIA)
 def navigationScript():
 	pass
-
+def getGlobalPluginInstance():
+	for i in globalPluginHandler.runningPlugins:
+		if isinstance(i, GlobalPlugin):
+			return(i)
 def createSimpleWalker():
 	propertyCondition = UIAUtils.createUIAMultiPropertyCondition({UIAHandler.UIA_ControlTypePropertyId: [
 		UIAHandler.UIA_GroupControlTypeId,
 		UIAHandler.UIA_WindowControlTypeId,
-		UIAHandler.UIA_TextControlTypeId
-	], UIAHandler.UIA_NamePropertyId: [""]}, {UIAHandler.UIA_ControlTypePropertyId: [UIAHandler.UIA_PaneControlTypeId, UIAHandler.UIA_ScrollBarControlTypeId]}, {UIAHandler.UIA_IsControlElementPropertyId: [False]})
+		UIAHandler.UIA_TextControlTypeId,
+		UIAHandler.UIA_CustomControlTypeId
+	], UIAHandler.UIA_NamePropertyId: ["", " ", "\n", ""]}, {UIAHandler.UIA_ControlTypePropertyId: [UIAHandler.UIA_PaneControlTypeId, UIAHandler.UIA_ScrollBarControlTypeId]}, {UIAHandler.UIA_IsControlElementPropertyId: [False]})
 	condition = element.CreateNotCondition(propertyCondition)
 	return(element.CreateTreeWalker(condition))
+def createSimpleWalker2():
+	rolePropertyCondition = UIAUtils.createUIAMultiPropertyCondition({UIAHandler.UIA_ControlTypePropertyId: [
+
+		UIAHandler.UIA_WindowControlTypeId,
+		UIAHandler.UIA_TextControlTypeId,
+		UIAHandler.UIA_GroupControlTypeId
+	]})
+	namePropertyCondition = UIAUtils.createUIAMultiPropertyCondition({ UIAHandler.UIA_NamePropertyId: [
+		"",
+		" ",
+		"\n"
+	]})
+	paneCondition = element.CreatePropertyCondition(UIAHandler.UIA_ControlTypePropertyId, UIAHandler.UIA_PaneControlTypeId)
+	controlElementCondition = element.CreateNotCondition(element.ControlViewCondition)
+	condition = element.CreateAndCondition(controlElementCondition, paneCondition)
+	condition = element.CreateAndCondition(condition, namePropertyCondition)
+	condition = element.CreateAndCondition(condition, rolePropertyCondition)
+	condition = element.CreateNotCondition(condition)
+	return(element.CreateTreeWalker(namePropertyCondition))
 simpleWalker = createSimpleWalker()
 
 def walkerWithProcessID(Element, walker):
@@ -249,6 +264,12 @@ def createFocusableWalker():
 	focusableCondition = element.CreatePropertyCondition(UIAHandler.UIA_IsKeyboardFocusablePropertyId, True)
 	condition = element.CreateAndCondition(simpleWalker.condition, focusableCondition)
 	return(element.CreateTreeWalker(condition))
+def createFormFieldAndFocusableWalker():
+	formFieldCondition = createFormFieldWalker().condition
+	focusableCondition = createFocusableWalker().condition
+	condition = element.CreateAndCondition(formFieldCondition, focusableCondition)
+	walker = element.CreateTreeWalker(condition)
+	return(walker)
 def createLandmarkWalker():
 	landmarkCondition = element.CreatePropertyCondition(UIAHandler.UIA_LandmarkTypePropertyId, 0)
 	landmarkCondition = element.CreateNotCondition(landmarkCondition)
@@ -264,28 +285,66 @@ def createSameItemWalker():
 		sameItemCondition = element.CreateAndCondition(sameItemCondition, classNameCondition)
 	condition = element.CreateAndCondition(sameItemCondition, simpleWalker.condition)
 	return(element.CreateTreeWalker(condition))
+def getDocumentUIAElementFromObj(obj):
+	# We can not fetch UIAElements directly from MSAA. Because when we do, at least in Firefox documents, the object navigation gets messed up  and extremely slow.
+	# I have not experienced this in any other place, but I am not willing to risc it.
+	# Feching IAccessibleObjects from UIAElements seams to not have this issue
+	if not isinstance(obj.treeInterceptor, browseMode.BrowseModeTreeInterceptor):
+		log.debug("Not in browse mode document, returning")
+		return
+	rootObj = obj.treeInterceptor.rootNVDAObject
+	log.debug(f"rootObject found with the name of {rootObj.name}")
+	point = ctypes.wintypes.POINT(*rootObj.location.center)
+	log.debug(f"Fetching object from point {rootObj.location.center}")
+	UIAElement = element.ElementFromPointBuildCache(point, cacheRequest)
+	UIAObj = NewUIA(UIAElement = UIAElement)
+	log.debug(f"UIAObj from point located with name of {UIAObj.name}")
+	x = rootObj.location.left
+	y = rootObj.location.top
+	now = time.time()
+	log.debug(f"UIAElement in center of the document is not a part of the document, trying to fetch from top left and move downwords")
+	NVDAObject = UIAObj.NVDAObject
+	while time.time() <now+5:
+		if NVDAObject and NVDAObject.treeInterceptor == rootObj.treeInterceptor:
+			break
+		point = ctypes.wintypes.POINT(x, y)
+		UIAElement = element.ElementFromPointBuildCache(point, cacheRequest)
+		UIAObj = NewUIA(UIAElement = UIAElement)
+		x += 1
+		y += 1
+		NVDAObject = UIAObj.NVDAObject
+		if not NVDAObject:
+			continue
+	while UIAObj and UIAObj.NVDAObject != rootObj:
+		log.debug(f"document element found with the name of {UIAObj.name}")
+		UIAObj = UIAObj.parent
+	if UIAObj:
+		return(UIAObj.UIAElement)
 def getSearchableElement(conf = None):
 	if not conf:
 		conf = config.conf['enhancedObjectNavigation']['scope']
 	handle = None
 	obj = api.getNavigatorObject()
 	desktop = ctypes.windll.user32.GetDesktopWindow()
+	e = None
 	if conf == 'desktop':
 		handle = desktop
 	elif conf == 'container':
-		handle = api.getNavigatorObject().windowHandle
-	else:
+		e = getDocumentUIAElementFromObj(obj)
+	if not e and not handle:
 		obj = window.Window(windowHandle = obj.windowHandle)
 		parent = obj
 		while parent.parent and not parent.parent.windowHandle == desktop:
 			parent = parent.parent
 		if parent:
 			handle = parent.windowHandle
-	e = element.ElementFromHandle(handle)
+	if not e:
+		e = element.ElementFromHandle(handle)
 	return(e)
 
 def createElementList(element, scope = UIAHandler.TreeScope_Descendants, condition = simpleWalker.condition):
 	canUseFindAll = True
+	UIAList = None
 	try:
 		UIAList = element.FindAllBuildCache(scope, condition, UIAHandler.handler.baseCacheRequest)
 	except:
@@ -330,15 +389,10 @@ def search(scope = UIAHandler.TreeScope_Descendants, walker = simpleWalker, gest
 	e = getSearchableElement()
 	data = createElementList(e, scope = scope, condition = condition)
 	if not data[1]:
-		if conf == 'container': # The user probably tried to list all elements in a window that only has one element, such as a button window, so try to list in the foreground window instead
-			e = getSearchableElement(conf = 'window')
-		
-		data = createElementList(e, scope = scope, condition = condition)
-		if not data[1]:
-			# Translators: the message reported when NVDA fails to create the search list
-			message = _("No items found")
-			ui.message(message)
-			return(None)
+		# Translators: the message reported when NVDA fails to create the search list
+		message = _("No items found")
+		ui.message(message)
+		return(None)
 	if not config.conf['enhancedObjectNavigation']['sortInTabOrder']:
 		data[0].sort(key = sort)
 	nameList = data[0]
@@ -362,7 +416,7 @@ class NewScreenExplorer(screenExplorer.ScreenExplorer):
 		point = POINT(x, y)
 		e = element.ElementFromPointBuildCache(point, cacheRequest)
 		if not inSearchList or e.CurrentClassName == 'CRootKey':
-			obj = NewUIA(UIAElement = e)
+			obj = NewUIA(UIAElement = e, fromTouch = True, wasNavigatedTo = False)
 			if obj == api.getNavigatorObject(): return
 			api.setNavigatorObject(obj)
 			speech.speech.cancelSpeech()
@@ -407,20 +461,19 @@ class NewUIA(UIA.UIA, metaclass = NewDynamicNVDAObjectType):
 				super(NewUIA, self).__init__(UIAElement = UIAElement, windowHandle = obj.windowHandle, *args, **kwargs)
 		self.wasNavigatedTo = wasNavigatedTo
 		self.fromTouch = fromTouch
-	def event_becomeNavigatorObject(self, isFocus):
-		if isinstance(self, Search):
-			return(		super(NewUIA, self).event_becomeNavigatorObject(isFocus = isFocus))
-
+	def event_becomeNavigatorObject(self, *args, **kwargs):
 		if self.wasNavigatedTo:
-			pattern = self._getUIAPattern(UIAHandler.UIA_ScrollItemPatternId, UIAHandler.IUIAutomationScrollItemPattern)
-			if pattern:
-				try:
-					pattern.ScrollIntoView()
-				except:
-					pass
-		super(NewUIA, self).event_becomeNavigatorObject(isFocus = isFocus)
+			self.scrollIntoView()
+		super(NewUIA, self).event_becomeNavigatorObject(*args, **kwargs)
 	def _get_treeInterceptor(self):
 		return(None)
+	def scrollIntoView(self):
+		pattern = self._getUIAPattern(UIAHandler.UIA_ScrollItemPatternId, UIAHandler.IUIAutomationScrollItemPattern)
+		if pattern:
+			try:
+				pattern.ScrollIntoView()
+			except:
+				pass
 	def _get_role(self):
 		role = super(NewUIA, self).role
 		if role != controlTypes.Role.HEADING and self.UIAElement.CurrentAriaRole == "heading":
@@ -442,6 +495,13 @@ class NewUIA(UIA.UIA, metaclass = NewDynamicNVDAObjectType):
 			return(super(NewUIA, self)._get_selectionContainer())
 		except:
 			return(None)
+	def _get_language(self):
+		language = None
+		try:
+			language = languageHandler.windowsLCIDToLocaleName(self.UIAElement.CurrentCulture)
+		except:
+			pass
+		return(language)
 	def _get_states(self):
 		# Sometimes, _get_state raises an exception
 		try:
@@ -490,13 +550,17 @@ class NewUIA(UIA.UIA, metaclass = NewDynamicNVDAObjectType):
 				return(NVDAToUIA(obj))
 		return(NewUIA(UIAElement = parentElement))
 	def _get_NVDAObject(self):
+		log.debug("fetching ordinary NVDAObject from NewUIA object")
 		if UIAHandler.handler.isUIAWindow(self.windowHandle):
+			log.debug("NVDA says treat as UIA, returning normal UIA object")
 			return(UIA.UIA(UIAElement = self.UIAElement))
+		log.debug("NewUIA object is not native according to NVDA. Trying to fetch from IAccessible")
 		obj = None
 		pattern = self.UIALegacyIAccessiblePattern
 		if pattern:
 			try:
 				IA = pattern.GetIAccessible()
+				log.debug("IAccessible object fetched from NewUIA object")
 			except:
 				IA = None
 			if IA:
@@ -505,16 +569,21 @@ class NewUIA(UIA.UIA, metaclass = NewDynamicNVDAObjectType):
 				except:
 					pass
 				try:
+					log.debug("Creating IAccessible NVDAObject")
 					obj = IAccessible.IAccessible(IAccessibleObject = IA, IAccessibleChildID = pattern.CurrentChildId)
 				except:
 					pass
 		if not obj:
 			location = self.location
-			x, y = location.center.x, location.center.y
-			objectFromPoint = api.getDesktopObject().objectFromPoint(x, y)
+			x, y = location.center
+			log.debug(f"Could not fetch from IAccessible. Trying to fetch from center of object, {x}, {y}")
+			objectFromPoint = NVDAObject.objectFromPoint(x, y)
+			if objectFromPoint:
+				log.debug(f"object from point is {objectFromPoint.name}, {objectFromPoint.role.displayString}.")
 			while objectFromPoint and not objectFromPoint.location == self.location:
 				objectFromPoint = objectFromPoint.parent
 			if objectFromPoint:
+				log.debug("object from point found. Returning")
 				obj = objectFromPoint
 		return(obj)
 	def _get_UIATextPattern(self):
@@ -814,6 +883,8 @@ class Ancestor(NewUIA):
 class Search(NewUIA, VirtualBase):
 	processID = 0
 	appModule = appModuleHandler.getAppModuleFromProcessID(0)
+	# Translators: The help text for the search list, to add compatibillity with the Control Usage Assistant addon.
+	helpText = _("Use the arrow keys to move through this list. Start typing to filter the list. Press enter to move the active cursor (e.g the focus, the browse mode cursor, or the navigator object when navigation mode is turned on) to the object represented by the current list item. Press backspace or delete to remove the search text")
 	def __init__(self, searchInfo = None, index = None, *args, **kwargs):
 		try:
 			UIAElement = searchInfo.elementDict[searchInfo.modifiableNameList[index]]
@@ -828,6 +899,8 @@ class Search(NewUIA, VirtualBase):
 		self.searchInfo = searchInfo
 		self.index = index
 	firstChild = lastChild = None
+	def scrollIntoView(self):
+		pass
 	def _get_name(self):
 		try:
 			name = self.searchInfo.modifiableNameList[self.index]
@@ -902,10 +975,10 @@ class Search(NewUIA, VirtualBase):
 				l.append(i)
 		if not l:
 			# Translators: the message reported when no items is found
-			message = _('No items')
+			message = _("No items")
 			ui.message(message)
 			return(None)
-		searchInfo.modifiableNameList = copy.copy(l)
+		searchInfo.modifiableNameList = l.copy()
 		searchInfo.searchString = temporarySearchString
 		obj = Search(searchInfo = self.searchInfo, index = 0)
 		index = 0
@@ -920,38 +993,67 @@ class Search(NewUIA, VirtualBase):
 		index = self.index+1
 		d = {'indexInGroup': index, 'similarItemsInGroup': len(self.searchInfo.modifiableNameList)}
 		return(d)
-	def _get_shouldSetFocus(self):
-		return(config.conf['enhancedObjectNavigation']['setFocus'])
-	def doAction(self, index = 0):
+	def shouldSetFocus(self, gesture = None):
+		if isinstance(gesture, touchHandler.TouchInputGesture):
+			return(False)
+		plugin = getGlobalPluginInstance()
+		navigation = plugin.navigation
+		return(not navigation)
+	def getActionName(self):
+		# Translators: The action name for a object in the search list
+		name = _("move")
+	def doAction(self, index = 0, gesture = None):
 		eventHandler.executeEvent('gainFocus', self.focus)
 		speech.speech.cancelSpeech()
 		obj = NewUIA(UIAElement = self.UIAElement, windowHandle = self.windowHandle)
-		if self.shouldSetFocus:
+		# Scroll the object into view, so it is a higher chance that NVDA may get a normal NVDAObject from the location of obj
+		obj.scrollIntoView()
+		if self.shouldSetFocus(gesture = gesture):
+			
 			tempObj = obj.NVDAObject
+			now = time.time()
+			# even though we scrolled the object into view, NVDA may not have managed to fetch the object from the center of obj.
+			# So try in 100 MS until it works
+			while time.time() < now+0.1 and not tempObj:
+				# Delete the object property cache.
+				# If we don't do this, NVDA wil get the cached property, e.g the _get_NVDAObject function will not be called
+				obj.invalidateCache()
+				tempObj = obj.NVDAObject
 			if not tempObj:
-				tempObj = api.getDesktopObject()
+				tempObj = NVDAObject.objectFromPoint(*obj.location.center)
 			focus = tempObj
-			while tempObj.parent and not review.getDocumentPosition(tempObj)													:
+			while tempObj and tempObj.parent and tempObj.treeInterceptor and not review.getDocumentPosition(tempObj)													:
 				tempObj = tempObj.parent
-			documentPosition = review.getDocumentPosition(tempObj)
-			speech.speech.speak(str(documentPosition and not tempObj.treeInterceptor.disableAutoPassThrough))
-			if documentPosition and not tempObj.treeInterceptor.disableAutoPassThrough:# and api.getFocusObject().treeInterceptor == tempObj.treeInterceptor:
+			documentPosition = None
+			if tempObj:
+				documentPosition = review.getDocumentPosition(tempObj)
+			if tempObj and documentPosition and isinstance(tempObj.treeInterceptor, browseMode.BrowseModeTreeInterceptor) and not tempObj.treeInterceptor.disableAutoPassThrough:
+				if tempObj.treeInterceptor != api.getFocusObject().treeInterceptor:
+					obj.setFocus()
 				documentPosition = documentPosition[0]
+				# When selecting an unfocusable object when in forms mode, and when Automatic focus mode for caret movement is turned off, forms mode will not be turned off automaticly
+				if not (config.conf["virtualBuffers"]["autoPassThroughOnCaretMove"]) and tempObj.treeInterceptor.passThrough:
+					tempObj.treeInterceptor.passThrough = False
 				documentPosition.expand(textInfos.UNIT_LINE)
 				speech.speech.speakTextInfo(documentPosition, reason = controlTypes.OutputReason.FOCUS)
 				documentPosition.collapse()
 				tempObj.treeInterceptor.selection = documentPosition
 				return
 			obj.setFocus()
-			newObj = obj.NVDAObject if obj.NVDAObject else obj
-			if newObj != api.getFocusObject():
-				wx.CallLater(10, api.setNavigatorObject, newObj)
-				return
+			newObj = obj.NVDAObject
+			if not newObj:
+				newObj = obj
+			def tempFunction():
+				if newObj != api.getFocusObject():
+					api.setNavigatorObject(newObj)
+					# Translators: The message reported when the navigator object can not take focus
+					message = _("Unable to move focus")
+					ui.message(message)
+					speech.speech.speakObject(newObj, reason = controlTypes.OutputReason.FOCUS)
+			wx.CallLater(500, tempFunction)
+			return
 		api.setNavigatorObject(obj)
 		speech.speech.speakObject(obj, reason = controlTypes.OutputReason.FOCUS)
-
-		if config.conf['enhancedObjectNavigation']['activate']:
-			obj.doAction()
 	@script(
 		gestures = ('kb:downArrow', 'ts(navigation):flickDown')
 	)
@@ -1017,14 +1119,14 @@ class Search(NewUIA, VirtualBase):
 			if not isinstance(obj, Search) and isinstance(obj, UIA.UIA) and obj.UIAElement.CurrentClassName == 'CRootKey':
 				obj.doAction()
 				return
-		self.doAction()
+		self.doAction(gesture = gesture)
 	@script(
 		gestures = ('kb:backSpace', 'kb:delete', 'ts(navigation):2finger_flickLeft')
 	)
 	def script_backSpace(self, gesture):
 		self.searchInfo.searchString = ''
 		name = self.searchInfo.modifiableNameList[self.index]
-		self.searchInfo.modifiableNameList = copy.copy(self.searchInfo.nameList)
+		self.searchInfo.modifiableNameList = self.searchInfo.nameList.copy()
 		index = self.searchInfo.nameList.index(name)
 		obj = Search(searchInfo = self.searchInfo, index = index)
 		eventHandler.executeEvent('gainFocus', obj)
@@ -1064,8 +1166,8 @@ def timerFunc(self):
 		pass
 timer = wx.Timer(gui.mainFrame)
 gui.mainFrame.Bind(wx.EVT_TIMER, handler = timerFunc, source = timer)
-def NVDAToUIA(obj, useMSAA = False):
-	if not isinstance(obj, window.Window):
+def NVDAToUIA(obj, useMSAA = False, findFromPoint = True):
+	if not hasattr(obj, "windowHandle"):
 		return(None)
 	finalElement = None
 	if isinstance(obj, UIA.UIA):
@@ -1085,8 +1187,9 @@ def NVDAToUIA(obj, useMSAA = False):
 				break
 		else:
 			break
-	if elementFromPoint:
+	if elementFromPoint and findFromPoint:
 		finalElement = elementFromPoint
+	# fetching from MSAA can sometimes make navigation slower, so don't fech from MSAA normaly
 	if not finalElement and isinstance(obj, IAccessible.IAccessible) and useMSAA:
 		try:
 			finalElement = element.ElementFromIAccessibleBuildCache(obj.IAccessibleObject, obj.IAccessibleChildID, UIAHandler.handler.baseCacheRequest)
@@ -1140,6 +1243,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	forms = False
 	wasInSearchList = False
 	index = 0
+	selectNavigation = False
 	# To prevent spam on the navigation functions from the user, wich can cause UIA to lag
 	lastArgs = []
 	def __init__(self, *args, **kwargs):
@@ -1159,7 +1263,26 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# Normaly, the GlobalPlugin scripts overwrites the NVDAObject scripts, but we don't want this when in the search list, as no of our GlobalPlugin scripts should be used in the search list,
 		if isinstance(obj, Search):
 			return
+		if self.selectNavigation:
+			return(self.selectNavigationScript)
 		return(super(GlobalPlugin, self).getScript(gesture))
+	def selectNavigationScript(self, gesture):
+		if not isinstance(gesture, keyboardHandler.KeyboardInputGesture):
+			return
+		self.selectNavigation = False
+		key = gesture.mainKeyName
+		found = False
+		for i in self.rotor:
+			if i.get("key") == key.lower():
+				found = True
+				break
+		if not found or key.lower() == "s": # if the user presses "s" the script may search for a wrong control type or raise an exception
+			# Translators: the message reported when the user entered a key that do not correspond to one of the quick nav keys
+			message = _("invalid key")
+			ui.message(f" {message} {key}")
+			return
+
+		search(walker = i.get("walker"), gesture = gesture)
 	def nextAction(self, previous = False):
 		obj = api.getNavigatorObject()
 		if not obj.actionList:
@@ -1202,6 +1325,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		{'displayName': _("focusable object"), 'scriptName': 'focusable', 'key': 'j', 'walker': createFocusableWalker()},
 		{'displayName': _("Landmark").lower(), 'scriptName': 'Landmark', 'key': 'n', 'walker': createLandmarkWalker()},
 		{'displayName': _("same item"), 'scriptName': 'SameItem', 'key': 's', 'walker': createSameItemWalker},
+		# Translators: A rotor option:
+		{"displayName": _("focusable form field"), "scriptName": "focusableFormField", "key": "y", "walker": createFormFieldAndFocusableWalker()}
 	]
 	def nextRotor(self, previous = False, setIndex = True, index = None):
 		if not index:
@@ -1394,6 +1519,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			self.bindGesture("kb:downArrow", "firstChild")
 		self.bindGesture('kb:space', 'doAction')
 		self.bindGesture("kb:shift+space", "secondaryAction")
+		self.bindGesture("kb:control+end", "endOfApplication")
+		self.bindGesture("kb:control+home", "beginningOfApplication")
 		passThroughKeys = [
 			"kb:enter",
 			"kb:numbpadEnter",
@@ -1414,6 +1541,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			self.bindGesture('kb:shift+'+key, 'previous'+scriptName)
 			self.bindGesture('kb:shift+control+'+key, scriptName+'List')
 	def event_gainFocus(self, obj, nextHandler):
+		if isinstance(obj, Search):
+			return(nextHandler())
 		if not config.conf["enhancedObjectNavigation"]["useByDefault"] or not isinstance(obj, window.Window):
 			self.turnOff()
 			return(nextHandler())
@@ -1530,7 +1659,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	)
 	def script_navigationMode(self, gesture):
 		focus = api.getFocusObject()
-		if focus.treeInterceptor and not focus.treeInterceptor.passThrough:
+		if focus.treeInterceptor and isinstance(focus.treeInterceptor, browseMode.BrowseModeTreeInterceptor) and not focus.treeInterceptor.passThrough:
 			# Translators: The message reported when the user is in browse mode and tries to turn on navigation mode
 			ui.message(_("Please disable browse mode with NVDA + space before using navigation mode"))
 			return
@@ -1559,7 +1688,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def script_doAction(self, gesture):
 		obj = api.getNavigatorObject()
 		focusElement = element.GetFocusedElement()
-		if element.CompareElements(obj.UIAElement, focusElement) and not obj.actionList and super(NewUIA, obj).UIATextPattern:
+		if element.CompareElements(obj.UIAElement, focusElement) and not obj.actionList and isinstance(obj.NVDAObject, editableText.EditableText):
 			self.turnOff(forms = True)
 			focusObj = api.getFocusObject()
 			api.setNavigatorObject(focusObj)
@@ -1659,4 +1788,51 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			return
 		api.setNavigatorObject(parent.simpleLastChild)
 		speech.speech.speakObject(api.getNavigatorObject(), reason = controlTypes.OutputReason.FOCUS)
+	@script(
+		gesture = ("kb:nvda+shift+f7"),
+		# Translators: the description for a script
+		description = _("Allows you to press a key, to list up all objects coresponding to that key, e.g b for buttons, or f for form fields")
+	)
+	def script_layeredSearch(self, gesture):
+		# Translators: The message reported when entering layered search
+		message = _("Press the key that corresponds to the item type you want to list up")
+		ui.message(message)
+		self.selectNavigation = True
+	@script(
+		# Translators: The description for a script
+		description = _("Moves the navigator object to the end of the current application")
+	)
+	@navigationScript
+	def script_endOfApplication(self, gesture):
+		obj = api.getNavigatorObject()
+		walker = walkerWithProcessID(obj.UIAElement, simpleWalker)
+		desktopElement = element.ElementFromHandle(api.getDesktopObject().windowHandle)
+		lastElement = desktopElement
+		lastChildElement = walker.GetLastChildElement(desktopElement)
+		while lastChildElement:
+			lastChildElement = walker.GetLastChildElement(lastElement)
+			if lastChildElement:
+				lastElement = lastChildElement
+		if not lastElement:
+			return
+		e = lastElement.BuildUpdatedCache(cacheRequest)
+		obj = NewUIA(UIAElement = e)
+		api.setNavigatorObject(obj)
+		speech.speech.speakObject(obj, reason = controlTypes.OutputReason.FOCUS)
+	@script(
+		# Translators: The description for a script
+		description = _("Moves the navigator object to the beginning of the current application")
+	)
+	@navigationScript
+	def script_beginningOfApplication(self, gesture):
+		obj = api.getNavigatorObject()
+		walker = walkerWithProcessID(obj.UIAElement, simpleWalker)
+		desktopElement = element.ElementFromHandle(api.getDesktopObject().windowHandle)
+		firstElement = walker.GetFirstChildElement(desktopElement)
+		if not firstElement:
+			return
+		e = firstElement.BuildUpdatedCache(cacheRequest)
+		obj = NewUIA(UIAElement = e)
+		api.setNavigatorObject(obj)
+		speech.speech.speakObject(obj, reason = controlTypes.OutputReason.FOCUS)
 GlobalPlugin.createScripts()
