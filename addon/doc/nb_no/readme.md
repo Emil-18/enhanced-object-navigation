@@ -1,4 +1,4 @@
-<p lang = "nb_no">
+<div lang = "nb_no">
 
 # Forbedret objektnavigering.
 * Forfatter: Emil-18.
@@ -140,4 +140,4 @@ ellers flyttes fokuset. Hvis fokus ikke kan flyttes, flyttes navigasjonsobjektet
 ### v0.1.
 
 Første utgivelse.
-</p>
+</div>
