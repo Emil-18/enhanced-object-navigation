@@ -1,4 +1,5 @@
 <p lang = "nb_no">
+
 # Forbedret objektnavigering.
 * Forfatter: Emil-18.
 * NVDA-kompatibilitet: 2024.1 og utover.
