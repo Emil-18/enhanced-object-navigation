@@ -1,9 +1,7 @@
-<div lang = "nb_no">
-
 # Forbedret objektnavigering.
 * Forfatter: Emil-18.
 * NVDA-kompatibilitet: 2024.1 og utover.
-* Last ned: [Stabil versjon](https://github.com/Emil-18/enhanced-object-navigation/releases/download/v0.2/enhancedObjectNavigation-0.2.nvda-addon).
+* Last ned: [Stabil versjon](https://github.com/Emil-18/enhanced-object-navigation/releases/download/v0.2.1/enhancedObjectNavigation-0.2.1.nvda-addon).
 
 Dette tillegget legger til forbedringer i objektnavigering. Merk at foreløpig fungerer det ikke i java-applikasjoner.
 
@@ -140,4 +138,3 @@ ellers flyttes fokuset. Hvis fokus ikke kan flyttes, flyttes navigasjonsobjektet
 ### v0.1.
 
 Første utgivelse.
-</div>

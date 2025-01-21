@@ -1,7 +1,7 @@
 # Enhanced Object Navigation.
 * Author: Emil-18.
 * NVDA compatibility: 2024.1 and beyond.
-* Download: [Stable version](https://github.com/Emil-18/enhanced-object-navigation/releases/download/v0.2/enhancedObjectNavigation-0.2.nvda-addon).
+* Download: [Stable version](https://github.com/Emil-18/enhanced-object-navigation/releases/download/v0.2.1/enhancedObjectNavigation-0.2.1.nvda-addon).
 
 This addon adds improvements to object navigation. Note that as of now, it doesn't work in java applications.
 
