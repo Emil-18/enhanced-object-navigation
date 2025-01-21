@@ -1,3 +1,5 @@
+<div lang = "nb_no">
+
 # Forbedret objektnavigering.
 * Forfatter: Emil-18.
 * NVDA-kompatibilitet: 2024.1 og utover.
@@ -138,3 +140,4 @@ ellers flyttes fokuset. Hvis fokus ikke kan flyttes, flyttes navigasjonsobjektet
 ### v0.1.
 
 Første utgivelse.
+</div>
