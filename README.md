@@ -1,17 +1,13 @@
 # Enhanced Object Navigation.
 * Author: Emil-18.
-* NVDA compatibility: 2023.1 and beyond.
-* Download: [Stable version](https://github.com/Emil-18/enhanced-object-navigation/releases/download/v0.1.1/enhancedObjectNavigation-0.1.1.nvda-addon).
+* NVDA compatibility: 2024.1 and beyond.
+* Download: [Stable version](https://github.com/Emil-18/enhanced-object-navigation/releases/download/v0.2/enhancedObjectNavigation-0.2.nvda-addon).
 
 This addon adds improvements to object navigation. Note that as of now, it doesn't work in java applications.
 
 ## Navigation mode.
 
-To enter navigation mode, press NVDA+shift+control+space. This will turn navigation mode on or off until the focus is moved.
-Press it twice to save the current state.
-When navigation mode is turned on in this way, it will automaticly be turned on when focus moves, unless the focus lands in an editable control, a menu, a document that supports browse mode, or a virtual control created by NVDA, such as an OCR result document. In these cases, it will be turned off.
-If you landed in an editable control or a menu, you can turn it back on by pressing escape.
-
+To turn on navigation mode, press NVDA+shift+control+space.
 Navigation mode can be turned on in any application.
 
 Note:
@@ -33,7 +29,7 @@ They will also navigate to objects regardless of hierarchy, unless stated otherw
 
 To turn advanced navigation on, press NVDA+A while you are in navigation mode. NVDA will remember the state of the advanced navigation mode between sessions.
 
-When advanced navigation is turned on, The arrow keys will move you around in the same way as normal object navigation. The "Simple review mode" setting will affect what you can navigate to.
+When advanced navigation is turned on, The arrow keys will move you around in the same way as normal object navigation, e.g Up arrow to move to the object containing the navigator object, left and right arrows move to the previous/next object, and down arrow moves to the first object inside the navigator object. The "Simple review mode" setting will affect what you can navigate to.
 When using these commands, you  can navigate outside of the current process.
 When advanced navigation is turned on, the rotor is not available, but all other commands works as normal, except for the arrow keys as described above.
 
@@ -67,25 +63,26 @@ Press the key on its own to jump to the next object, add shift to jump to the pr
 * v: tree or tree item.
 * w: control (areas that can be redefined with the [Enhanced control support add-on](https://github.com/emil-18/enhanced-control-support)).
 * x: check box.
+* y: focusable form field.
 * z: status bar.
 
 All of these are available in the rotor as well.
 ## The search list.
 
 The search list is a virtual list that contains the objects you have listed up, for example by pressing control+shift+b while in navigation mode to list buttons.
-To list objects regardless of role, press NVDA+control+enter. This command is available even when navigation mode is turned off.
+To list objects regardless of role, press NVDA+control+enter. This command is available even when navigation mode is turned off. You can also press NVDA+shift+f7 anywhere, and then press a navigation key, e.g b for button, to only list up buttons.
 Since the list is virtual, you can do things such as list all the objects in a menu, without the menu closing, because the system focus is not moved.
 
 When you are in the list, you can start typing to filter the list. Hold down left alt and type a character to move to the next object starting with that character.
 
 You can use the following commands while in the list.
 
-* enter: move the navigator object to the selected item and close the search list.
+* enter: move to the selected item and close the search list.
 * backspace or delete: remove the search text and return all items to the list.
 * up and down arrow: move to the next or previous item.
 * left and right arrow: move to the next or previous item starting with a different character.
 * Home and end: move to the beginning and end of the list.
-* shift+backspace or shift+delete: reset the searchText. This will keep the list in its current state, but removes the search text, so you can start a new search.
+* shift+backspace or shift+delete: reset the searchText. This will keep the list in its current state, but removes the search text, so you can start a new search. You could for example type "NV", press this command, and type "A" and items containing "NVDA" will show up.
 * escape: exit  the search list and return the focus and the navigator object  to where they were before you opened the list.
 
 ## Enhanced touch support.
@@ -101,7 +98,7 @@ The gestures for this mode are as follows.
 ## Settings.
 
 * Use navigation mode by default.
-This setting determines if navigation mode should be turned on when focus moves, same as pressing NVDA+shift+control+space twice.
+This setting determines if navigation mode should be on by default, same as pressing NVDA+shift+control+space.
 * When searching, sort the items in tab order instead of alphabetically.
 When turned on, The search list will be sorted in tab order instead of alphabeticly.
 * Search scope.
@@ -109,21 +106,29 @@ This is a combo box that allows you to choose the scope when searching for objec
 You can as of now choose between 3 options.
     * The foreground window.
     * All objects in the operating system.
-    * The current control that the navigator object is in, e.g a list or a web page.
+    * The current browse mode document that the navigator object is in.
 * Use enhanced detection while searching for same item.
 When checked, the s single letter navigation key will include only objects that are programmaticly the same, instead of all objects with the same role.
 * Report object context while navigating in the search list.
-When checked, NVDA will report objects contaning the object you landed in when navigating in the list if it differes from the previous object, like NVDA does normaly when you move focus.
-* Set focus to the item selected in the search list.
-When checked, NVDA will try to automaticly set focus to the object, in addition to move the navigator object to it, when pressing enter in the search list.
-* Activate the item selected in the search list.
-When checked, NVDA will automaticly perform the default action on the object selected in the search list.
-* When in navigation mode or in the search list, automatically update the braille display when the content of the shown object changes. Disable if you incounter problems using the add-on, such as lag. Self explanatory.
+When checked, NVDA will report objects containing the object you landed in when navigating in the list if it differes from the previous object, like NVDA does normally when you move focus.
+* When in navigation mode or in the search list, automatically update the braille display when the content of the shown object changes. Disable if you encounter problems using the add-on, such as lag. Self explanatory.
 * When in the search list and holding down left alt, use first letter navigation.
 When checked, You can hold down left alt while you are in the search list and press characters to move to the next item starting with that character.
 * Use sounds to indicate if navigation mode has been toggled. Self explanatory.
+* disable asynchronous navigation, useful if you encounter problems while navigating, such as NVDA becoming silent or playing error sounds. Self explanatory.
 
 ## Change log.
+
+
+### v0.2
+* Removed the concept of saving the navigation mode. Now, it will automaticly save when the gesture is pressed once.
+* Navigation mode will no longer turn off automaticly when focus moves, except if focus lands in a browse mode document where browse mode is enabled. To enter forms mode, you need to press space on an editable control. once if the control has focus, and twice otherwize.
+* When pressing enter on an item in the search list, the active cursor will be moved. If navigation mode is active, the navigator object will be moved. If the object represented by the current item is in a browse mode document and browse mode is turned on, the browse mode cursor will be moved.
+else the focus is moved. If the focus can't be moved, the navigator object is moved instead.
+* Fixed a bug where NVDA sometimes crashed when exiting or restarting.
+* Made the searching for next and previous object in navigation mode asynchronous.
+* Added a new quicknav key, y, that is for focusable form fields.
+* Removed the "Set focus to the item selected in the search list" and the "Activate the item selected in the search list" settings
 
 ### v0.1.1
 
