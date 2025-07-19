@@ -1,7 +1,7 @@
 # Enhanced Object Navigation.
 * Author: Emil-18.
 * NVDA compatibility: 2024.1 and beyond.
-* Download: [Stable version](https://github.com/Emil-18/enhanced-object-navigation/releases/download/v0.2.1/enhancedObjectNavigation-0.2.1.nvda-addon).
+* Download: [Stable version](https://github.com/Emil-18/enhanced-object-navigation/releases/download/v0.2.2/enhancedObjectNavigation-0.2.2.nvda-addon).
 
 This addon adds improvements to object navigation. Note that as of now, it doesn't work in java applications.
 
@@ -118,7 +118,8 @@ When checked, You can hold down left alt while you are in the search list and pr
 * disable asynchronous navigation, useful if you encounter problems while navigating, such as NVDA becoming silent or playing error sounds. Self explanatory.
 
 ## Change log.
-
+### v0.2.2
+* Added compatibillity with NVDA 2025.1
 
 ### v0.2
 * Removed the concept of saving the navigation mode. Now, it will automaticly save when the gesture is pressed once.

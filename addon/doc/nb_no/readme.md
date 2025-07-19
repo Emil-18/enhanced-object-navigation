@@ -3,7 +3,7 @@
 # Forbedret objektnavigering.
 * Forfatter: Emil-18.
 * NVDA-kompatibilitet: 2024.1 og utover.
-* Last ned: [Stabil versjon](https://github.com/Emil-18/enhanced-object-navigation/releases/download/v0.2.1/enhancedObjectNavigation-0.2.1.nvda-addon).
+* Last ned: [Stabil versjon](https://github.com/Emil-18/enhanced-object-navigation/releases/download/v0.2.2/enhancedObjectNavigation-0.2.2.nvda-addon).
 
 Dette tillegget legger til forbedringer i objektnavigering. Merk at foreløpig fungerer det ikke i java-applikasjoner.
 
@@ -120,7 +120,8 @@ Når det er merket av, kan du holde nede venstre alt mens du er i søkelisten og
 
 ## Forandrings logg.
 
-
+### v0.2.2
+* La til kompatibillitet med NVDA 2025.1
 ### v0.2
 * Fjernet konseptet med å lagre navigasjonsmodus. Nå lagres den automatisk når kommandoen trykkes én gang.
 * Navigasjonsmodus vil ikke lenger slå seg av automatisk når fokus flyttes, bortsett fra hvis fokus lander i et dokument i nettmodus der nettmodus er aktivert. For å gå inn i skjemamodus må du trykke mellomrom på en redigerbar kontroll. én gang hvis kontrollen har fokus, og to ganger hvis ikke.
