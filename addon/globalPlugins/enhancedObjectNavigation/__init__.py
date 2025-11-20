@@ -34,6 +34,7 @@ import ui
 import UIAHandler
 import winUser
 import wx
+from .objectList import ObjectList, UIAObjectList
 from ctypes import *
 from ctypes.wintypes import POINT, RECT
 from controlTypes import Role
@@ -68,7 +69,10 @@ confSpec = {
 	'altMode': 'boolean(default=True)',
 	"useSounds": "boolean(default=True)",
 	"advancedNavigation": "boolean(default=False)",
-	"freezeWhenNavigating": "boolean(default=False)"
+	"freezeWhenNavigating": "boolean(default=False)",
+	"useVirtualSearchList": "boolean(default=true)",
+	"UIAInGUI": "boolean(default=false)",
+	"regex": "boolean(default=false)"
 }
 config.conf.spec['enhancedObjectNavigation'] = confSpec
 internalScopeValues = ['window', 'desktop', 'container']
@@ -83,6 +87,9 @@ scopeValues = [
 class EnhancedObjectNavigationSettingsPanel(gui.SettingsPanel):
 	# Translators: the title of a settings panel
 	title = _('Enhanced object navigation')
+	def onCheck(self, evt):
+		self.virtualGroupBox.Enable(evt.GetSelection())
+		self.dialogGroupBox.Enable(not evt.GetSelection())
 	def makeSettings(self, settingsSizer):
 		settings = gui.guiHelper.BoxSizerHelper(self, sizer=settingsSizer)
 		# Translators: the label of a check box
@@ -101,26 +108,58 @@ class EnhancedObjectNavigationSettingsPanel(gui.SettingsPanel):
 		label = _('Use &enhanced detection while searching for same item')
 		self.enhancedDetection = settings.addItem(wx.CheckBox(self, label = label))
 		self.enhancedDetection.SetValue(config.conf['enhancedObjectNavigation']['enhancedDetection'])
+		# Translators: the label for a check box
+		label = _("Use a virtual list when listing up objects (does not work in Java applications)")
+		
+		self.virtualSearchMenu = settings.addItem(wx.CheckBox(self, label = label))
+		self.virtualSearchMenu.SetValue(config.conf["enhancedObjectNavigation"]["useVirtualSearchList"])
+		self.virtualSearchMenu.Bind(wx.EVT_CHECKBOX, self.onCheck)
+		# Translators: a label for a group
+		label = _("Settings for the virtual search list")
+
+		virtualGroupSizer = wx.StaticBoxSizer(wx.VERTICAL, self, label = label)
+		self.virtualGroupBox = virtualGroupSizer.GetStaticBox()
+
+		virtualGroupHelper = gui.guiHelper.BoxSizerHelper(self, sizer=virtualGroupSizer)
+		settings.addItem(virtualGroupHelper)
 		# Translators: The label for a check box
-		label = _('&Report object context while navigating in the search list')
-		self.context = settings.addItem(wx.CheckBox(self, label = label))
+		label = _("&Report object context while navigating")
+		self.context = virtualGroupHelper.addItem(wx.CheckBox(self.virtualGroupBox, label = label))
 		self.context.SetValue(config.conf['enhancedObjectNavigation']['context'])
 		# Translators: The label for a check box
-		label = _('When in navigation mode or in the search list, automatically update the braille display when the content of the shown object changes. Disable if you incounter problems using the add-on, such as lag.')
+		label = _('When holding down left alt, use first letter navigation')
+		self.altMode = virtualGroupHelper.addItem(wx.CheckBox(self.virtualGroupBox, label = label))
+		self.altMode.SetValue(config.conf['enhancedObjectNavigation']['altMode'])
+		# Translators: a label for a group
+		label = _("Settings for the search dialog")
+
+		dialogGroupSizer = wx.StaticBoxSizer(wx.VERTICAL, self, label = label)
+		self.dialogGroupBox = dialogGroupSizer.GetStaticBox()
+		dialogGroupHelper = gui.guiHelper.BoxSizerHelper(self, sizer=dialogGroupSizer)
+		settings.addItem(dialogGroupHelper)
+
+		# Translators: The label for a check box
+		label = _("Use UI automation when listing objects (same as in the virtual search list)")
+		self.UIAInGUI = dialogGroupHelper.addItem(wx.CheckBox(self.dialogGroupBox, label = label))
+		self.UIAInGUI.SetValue(config. conf["enhancedObjectNavigation"]["UIAInGUI"])
+		# Translators: The label for a check box
+		label = _("Use Regular expressions when searching")
+		self.regex = dialogGroupHelper.addItem(wx.CheckBox(self.dialogGroupBox, label = label))
+		self.regex.SetValue(config.conf["enhancedObjectNavigation"]["regex"])
+		# Translators: The label for a check box
+		label = _('When in navigation mode or in the search list, automatically update the braille display when the content of the shown object changes. Disable if you encounter problems using the add-on, such as lag.')
 		self.autoUpdate = settings.addItem(wx.CheckBox(self, label = label))
 		self.autoUpdate.SetValue(config.conf['enhancedObjectNavigation']['autoUpdate'])
-		# Translators: The label for a check box
-		label = _('When in the search list and holding down left alt, use first letter navigation')
-		self.altMode = settings.addItem(wx.CheckBox(self, label = label))
-		self.altMode.SetValue(config.conf['enhancedObjectNavigation']['altMode'])
 		# Translators: The label for a check box
 		label = _("Use sounds to indicate if navigation mode has been toggled")
 		self.sounds = settings.addItem(wx.CheckBox(self, label = label))
 		self.sounds.SetValue(config.conf["enhancedObjectNavigation"]["useSounds"])
 		# Translators: a label for a check box
-		label = _("disable asynchronous navigation, useful if you incounter problems while navigating, such as NVDA becoming silent or playing error sounds")
+		label = _("disable asynchronous navigation, useful if you encounter problems while navigating, such as NVDA becoming silent or playing error sounds")
 		self.freeze = settings.addItem(wx.CheckBox( self, label = label))
 		self.freeze.SetValue(config.conf["enhancedObjectNavigation"]["freezeWhenNavigating"])
+		self.dialogGroupBox.Enable(not self.virtualSearchMenu.GetValue())
+		self.virtualGroupBox.Enable(self.virtualSearchMenu.GetValue())
 	def onSave(self):
 		config.conf['enhancedObjectNavigation']['useByDefault'] = self.navigationMode.GetValue()
 		config.conf['enhancedObjectNavigation']['sortInTabOrder'] = self.sortInTabOrder.GetValue()
@@ -131,6 +170,9 @@ class EnhancedObjectNavigationSettingsPanel(gui.SettingsPanel):
 		config.conf['enhancedObjectNavigation']['altMode'] = self.altMode.GetValue()
 		config.conf["enhancedObjectNavigation"]["useSounds"] = self.sounds.GetValue()
 		config.conf["enhancedObjectNavigation"]["freezeWhenNavigating"] = self.freeze.GetValue()
+		config.conf["enhancedObjectNavigation"]["useVirtualSearchList"] = self.virtualSearchMenu.GetValue()
+		config.conf["enhancedObjectNavigation"]["UIAInGUI"] = self.UIAInGUI.GetValue()
+		config.conf["enhancedObjectNavigation"]["regex"] = self.regex.GetValue()
 def sort(i):
 	return(i[:-6].lower())
 def send(name):
@@ -378,7 +420,26 @@ def createElementList(element, scope = UIAHandler.TreeScope_Descendants, conditi
 		nameList.append(name)
 		elementDict.update({name: e})
 	return(nameList, elementDict)
-def search(scope = UIAHandler.TreeScope_Descendants, walker = simpleWalker, gesture = None):
+def getSearchableObject(obj):
+	conf = config.conf['enhancedObjectNavigation']["scope"]
+	if conf == "desktop":
+		return(api.getDesktopObject())
+	treeInterceptor = obj.treeInterceptor
+	if conf == "container" and treeInterceptor and isinstance(treeInterceptor, browseMode.BrowseModeTreeInterceptor):
+		obj = treeInterceptor.rootNVDAObject
+		return(obj)
+	while obj.parent and not obj.parent.windowHandle == api.getDesktopObject().windowHandle:
+		obj = obj.parent
+	return(obj)
+def searchWithDialog(key = None):
+	nav = api.getNavigatorObject()
+	searchObj = getSearchableObject(nav)
+	if isinstance(searchObj, NewUIA):
+		searchObj = searchObj.NVDAObject
+	cls = ObjectList if not config.conf["enhancedObjectNavigation"]["UIAInGUI"] else UIAObjectList
+	gui.mainFrame.popupSettingsDialog(cls, obj = searchObj, startObj = nav, key = key)
+	
+def search(scope = UIAHandler.TreeScope_Descendants, walker = simpleWalker, gesture = None, key = None):
 	conf = config.conf['enhancedObjectNavigation']['scope']
 	if hasattr(walker, '__call__'):
 		walker = walker()
@@ -386,6 +447,9 @@ def search(scope = UIAHandler.TreeScope_Descendants, walker = simpleWalker, gest
 	# Translators: The message reported when opening the item list
 	message = _('Loading items, please wait...')
 	ui.message(message)
+	if not config.conf["enhancedObjectNavigation"]["useVirtualSearchList"]:
+		searchWithDialog(key = key)
+		return
 	e = getSearchableElement()
 	data = createElementList(e, scope = scope, condition = condition)
 	if not data[1]:
@@ -993,67 +1057,13 @@ class Search(NewUIA, VirtualBase):
 		index = self.index+1
 		d = {'indexInGroup': index, 'similarItemsInGroup': len(self.searchInfo.modifiableNameList)}
 		return(d)
-	def shouldSetFocus(self, gesture = None):
-		if isinstance(gesture, touchHandler.TouchInputGesture):
-			return(False)
-		plugin = getGlobalPluginInstance()
-		navigation = plugin.navigation
-		return(not navigation)
 	def getActionName(self):
 		# Translators: The action name for a object in the search list
 		name = _("move")
 	def doAction(self, index = 0, gesture = None):
 		eventHandler.executeEvent('gainFocus', self.focus)
 		speech.speech.cancelSpeech()
-		obj = NewUIA(UIAElement = self.UIAElement, windowHandle = self.windowHandle)
-		# Scroll the object into view, so it is a higher chance that NVDA may get a normal NVDAObject from the location of obj
-		obj.scrollIntoView()
-		if self.shouldSetFocus(gesture = gesture):
-			
-			tempObj = obj.NVDAObject
-			now = time.time()
-			# even though we scrolled the object into view, NVDA may not have managed to fetch the object from the center of obj.
-			# So try in 100 MS until it works
-			while time.time() < now+0.1 and not tempObj:
-				# Delete the object property cache.
-				# If we don't do this, NVDA wil get the cached property, e.g the _get_NVDAObject function will not be called
-				obj.invalidateCache()
-				tempObj = obj.NVDAObject
-			if not tempObj:
-				tempObj = NVDAObject.objectFromPoint(*obj.location.center)
-			focus = tempObj
-			while tempObj and tempObj.parent and tempObj.treeInterceptor and not review.getDocumentPosition(tempObj)													:
-				tempObj = tempObj.parent
-			documentPosition = None
-			if tempObj:
-				documentPosition = review.getDocumentPosition(tempObj)
-			if tempObj and documentPosition and isinstance(tempObj.treeInterceptor, browseMode.BrowseModeTreeInterceptor) and not tempObj.treeInterceptor.disableAutoPassThrough:
-				if tempObj.treeInterceptor != api.getFocusObject().treeInterceptor:
-					obj.setFocus()
-				documentPosition = documentPosition[0]
-				# When selecting an unfocusable object when in forms mode, and when Automatic focus mode for caret movement is turned off, forms mode will not be turned off automaticly
-				if not (config.conf["virtualBuffers"]["autoPassThroughOnCaretMove"]) and tempObj.treeInterceptor.passThrough:
-					tempObj.treeInterceptor.passThrough = False
-				documentPosition.expand(textInfos.UNIT_LINE)
-				speech.speech.speakTextInfo(documentPosition, reason = controlTypes.OutputReason.FOCUS)
-				documentPosition.collapse()
-				tempObj.treeInterceptor.selection = documentPosition
-				return
-			obj.setFocus()
-			newObj = obj.NVDAObject
-			if not newObj:
-				newObj = obj
-			def tempFunction():
-				if newObj != api.getFocusObject():
-					api.setNavigatorObject(newObj)
-					# Translators: The message reported when the navigator object can not take focus
-					message = _("Unable to move focus")
-					ui.message(message)
-					speech.speech.speakObject(newObj, reason = controlTypes.OutputReason.FOCUS)
-			wx.CallLater(500, tempFunction)
-			return
-		api.setNavigatorObject(obj)
-		speech.speech.speakObject(obj, reason = controlTypes.OutputReason.FOCUS)
+		handleMoveToUIA(self, gesture = gesture, shouldCreateUIAObject = True)
 	@script(
 		gestures = ('kb:downArrow', 'ts(navigation):flickDown')
 	)
@@ -1151,6 +1161,69 @@ class Search(NewUIA, VirtualBase):
 		index = len(self.searchInfo.modifiableNameList)-1
 		obj = Search(searchInfo = self.searchInfo, index=index)
 		eventHandler.executeEvent("gainFocus", obj)
+def shouldSetFocus(gesture = None):
+	if isinstance(gesture, touchHandler.TouchInputGesture):
+		return(False)
+	plugin = getGlobalPluginInstance()
+	navigation = plugin.navigation
+	return(not navigation)
+def handleMoveToUIA(UIAObj, gesture = None, shouldCreateUIAObject = False):
+	if shouldCreateUIAObject:
+		obj = NewUIA(UIAElement = UIAObj.UIAElement, windowHandle = UIAObj.windowHandle)
+	else:
+		obj = UIAObj
+	# Scroll the object into view, so it is a higher chance that NVDA may get a normal NVDAObject from the location of obj
+	obj.scrollIntoView()
+	if shouldSetFocus(gesture = gesture):
+		
+		tempObj = obj.NVDAObject
+		now = time.time()
+		# even though we scrolled the object into view, NVDA may not have managed to fetch the object from the center of obj.
+		# So try in 100 MS until it works
+		while time.time() < now+0.1 and not tempObj:
+			# Delete the object property cache.
+			# If we don't do this, NVDA wil get the cached property, e.g the _get_NVDAObject function will not be called
+			obj.invalidateCache()
+			tempObj = obj.NVDAObject
+		if not tempObj:
+			tempObj = NVDAObject.objectFromPoint(*obj.location.center)
+		try:
+			handleMoveBrowseModeCursor(tempObj)
+		except:
+			pass
+		obj.setFocus()
+		newObj = obj.NVDAObject
+		if not newObj:
+			newObj = obj
+		wx.CallLater(500, handleMoveFocusIfFailed, newObj)
+		return
+	api.setNavigatorObject(obj)
+	speech.speech.speakObject(obj, reason = controlTypes.OutputReason.FOCUS)
+def handleMoveFocusIfFailed(obj):
+	if obj != api.getFocusObject():
+		api.setNavigatorObject(obj)
+		# Translators: The message reported when the navigator object can not take focus
+		message = _("Unable to move focus")
+		ui.message(message)
+		speech.speech.speakObject(obj, reason = controlTypes.OutputReason.FOCUS)
+def handleMoveBrowseModeCursor(tempObj):
+	focus = tempObj
+	while tempObj and tempObj.parent and tempObj.treeInterceptor and not review.getDocumentPosition(tempObj)													:
+		tempObj = tempObj.parent
+	documentPosition = None
+	if tempObj:
+		documentPosition = review.getDocumentPosition(tempObj)
+	if tempObj and documentPosition and isinstance(tempObj.treeInterceptor, browseMode.BrowseModeTreeInterceptor) and not tempObj.treeInterceptor.disableAutoPassThrough:
+		if tempObj.treeInterceptor != api.getFocusObject().treeInterceptor:
+			tempObj.setFocus()
+		documentPosition = documentPosition[0]
+		# When selecting an unfocusable object when in forms mode, and when Automatic focus mode for caret movement is turned off, forms mode will not be turned off automaticly
+		if not (config.conf["virtualBuffers"]["autoPassThroughOnCaretMove"]) and tempObj.treeInterceptor.passThrough:
+			tempObj.treeInterceptor.passThrough = False
+		documentPosition.expand(textInfos.UNIT_LINE)
+		speech.speech.speakTextInfo(documentPosition, reason = controlTypes.OutputReason.FOCUS)
+		documentPosition.collapse()
+		tempObj.treeInterceptor.selection = documentPosition
 def timerFunc(self): 
 	if not config.conf['enhancedObjectNavigation']['autoUpdate']:
 		return
@@ -1298,32 +1371,32 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		obj.defaultActionIndex = index 
 		ui.message(actionList[index][1])
 	rotor = [
-		{'displayName': Role.BUTTON.displayString, 'scriptName': 'Button', 'key': 'b', 'walker': quickNavWalker(UIAHandler.UIA_ButtonControlTypeId)},
-		{'displayName': Role.LINK.displayString, 'scriptName': 'Link', 'key': 'k', 'walker': quickNavWalker(UIAHandler.UIA_HyperlinkControlTypeId)},
+		{'displayName': Role.BUTTON.displayString, 'scriptName': 'Button', 'key': 'b', 'walker': quickNavWalker(UIAHandler.UIA_ButtonControlTypeId), "roles": {Role.BUTTON}},
+		{'displayName': Role.LINK.displayString, 'scriptName': 'Link', 'key': 'k', 'walker': quickNavWalker(UIAHandler.UIA_HyperlinkControlTypeId), "roles": {Role.LINK}},
 		# Translators: A rotor option:
 		{'displayName': _("Actions"), 'function': nextAction, 'isSupported': lambda : isinstance(api.getNavigatorObject(), NewUIA) and api.getNavigatorObject().actionList},
 		# Translators: A rotor option:
-		{"displayName": _("control"), "scriptName": "control", "walker": quickNavWalker(UIAHandler.handler.windowTreeWalker), "key": "w"},
-		{'displayName': Role.EDITABLETEXT.displayString, 'scriptName': 'Edit', 'key': 'e', 'walker': quickNavWalker(UIAHandler.UIA_EditControlTypeId)},
-		{'displayName': Role.STATICTEXT.displayString, 'scriptName': 'Text', 'key': 'p', 'walker': quickNavWalker(UIAHandler.UIA_TextControlTypeId)},
-		{'displayName': Role.DOCUMENT.displayString, 'scriptName': 'Document', 'key': 'd', 'walker': quickNavWalker(UIAHandler.UIA_DocumentControlTypeId)},
-		{'displayName': Role.LIST.displayString, 'scriptName': 'List', 'key': 'l', 'walker': quickNavWalker(UIAHandler.UIA_ListControlTypeId)},
-		{'displayName': Role.LISTITEM.displayString, 'scriptName': 'i', 'key': 'i', 'walker': quickNavWalker(UIAHandler.UIA_ListItemControlTypeId)},
-		{'displayName': Role.TOOLBAR.displayString, 'scriptName': 'ToolBar', 'key': 'o', 'walker': quickNavWalker(UIAHandler.UIA_ToolBarControlTypeId)},
-		{'displayName': Role.TABLE.displayString, 'scriptName': 'Table', 'key': 't', 'walker': quickNavWalker(UIAHandler.UIA_TableControlTypeId)},
-		{'displayName': Role.COMBOBOX.displayString, 'scriptName': 'ComboBox', 'key': 'c', 'walker': quickNavWalker(UIAHandler.UIA_ComboBoxControlTypeId)},
-		{'displayName': Role.HEADING.displayString, 'scriptName': 'Heading', 'key': 'h', 'walker': createHeadingWalker() },
-		{'displayName': Role.CHECKBOX.displayString, 'scriptName': 'CheckBox', 'key': 'x', 'walker': quickNavWalker(UIAHandler.UIA_CheckBoxControlTypeId)},
-		{'displayName': Role.RADIOBUTTON.displayString, 'scriptName': 'RadioButton', 'key': 'r', 'walker': quickNavWalker(UIAHandler.UIA_RadioButtonControlTypeId)},
-		{'displayName': Role.GRAPHIC.displayString, 'scriptName': 'Graphic', 'key': 'g', 'walker': quickNavWalker(UIAHandler.UIA_ImageControlTypeId)},
-		{'displayName': Role.STATUSBAR.displayString, 'scriptName': 'StatusBar', 'key': 'z', 'walker': quickNavWalker(UIAHandler.UIA_StatusBarControlTypeId)},
-		{'displayName': Role.GROUPING.displayString, 'scriptName': 'Grouping', 'key': 'u', 'walker': quickNavWalker(UIAHandler.UIA_GroupControlTypeId)},
-		{'displayName': _("menu, menu bar or menu item"), 'scriptName': 'Menu', 'key': 'm', 'walker': createMenuWalker()},
-		{'displayName': _("tree or tree item"), 'scriptName': 'Tree', 'key': 'v', 'walker': createTreeWalker()},
-		{'displayName': _("tab or tab item"), 'scriptName': 'Tab', 'key': 'q', 'walker': createTabWalker()},
-		{'displayName': _("form field"), 'scriptName': 'FormField', 'key': 'f', 'walker': createFormFieldWalker()},
-		{'displayName': _("focusable object"), 'scriptName': 'focusable', 'key': 'j', 'walker': createFocusableWalker()},
-		{'displayName': _("Landmark").lower(), 'scriptName': 'Landmark', 'key': 'n', 'walker': createLandmarkWalker()},
+		{"displayName": _("control"), "scriptName": "control", "walker": quickNavWalker(UIAHandler.handler.windowTreeWalker), "key": "w", "shouldInclude": lambda obj: obj == window.Window(windowHandle = obj.windowHandle)},
+		{'displayName': Role.EDITABLETEXT.displayString, 'scriptName': 'Edit', 'key': 'e', 'walker': quickNavWalker(UIAHandler.UIA_EditControlTypeId), "roles": {Role.EDITABLETEXT}},
+		{'displayName': Role.STATICTEXT.displayString, 'scriptName': 'Text', 'key': 'p', 'walker': quickNavWalker(UIAHandler.UIA_TextControlTypeId), "roles": {Role.STATICTEXT}},
+		{'displayName': Role.DOCUMENT.displayString, 'scriptName': 'Document', 'key': 'd', 'walker': quickNavWalker(UIAHandler.UIA_DocumentControlTypeId), "roles": {Role.DOCUMENT}},
+		{'displayName': Role.LIST.displayString, 'scriptName': 'List', 'key': 'l', 'walker': quickNavWalker(UIAHandler.UIA_ListControlTypeId), "roles": {Role.LIST}},
+		{'displayName': Role.LISTITEM.displayString, 'scriptName': 'i', 'key': 'i', 'walker': quickNavWalker(UIAHandler.UIA_ListItemControlTypeId), "roles": {Role.LISTITEM}},
+		{'displayName': Role.TOOLBAR.displayString, 'scriptName': 'ToolBar', 'key': 'o', 'walker': quickNavWalker(UIAHandler.UIA_ToolBarControlTypeId), "roles": {Role.TOOLBAR}},
+		{'displayName': Role.TABLE.displayString, 'scriptName': 'Table', 'key': 't', 'walker': quickNavWalker(UIAHandler.UIA_TableControlTypeId), "roles": {Role.TABLE}},
+		{'displayName': Role.COMBOBOX.displayString, 'scriptName': 'ComboBox', 'key': 'c', 'walker': quickNavWalker(UIAHandler.UIA_ComboBoxControlTypeId), "roles": {Role.COMBOBOX}},
+		{'displayName': Role.HEADING.displayString, 'scriptName': 'Heading', 'key': 'h', 'walker': createHeadingWalker(), "roles": {Role.HEADING}},
+		{'displayName': Role.CHECKBOX.displayString, 'scriptName': 'CheckBox', 'key': 'x', 'walker': quickNavWalker(UIAHandler.UIA_CheckBoxControlTypeId), "roles": {Role.CHECKBOX}},
+		{'displayName': Role.RADIOBUTTON.displayString, 'scriptName': 'RadioButton', 'key': 'r', 'walker': quickNavWalker(UIAHandler.UIA_RadioButtonControlTypeId), "roles": {Role.RADIOBUTTON}},
+		{'displayName': Role.GRAPHIC.displayString, 'scriptName': 'Graphic', 'key': 'g', 'walker': quickNavWalker(UIAHandler.UIA_ImageControlTypeId), "roles": {Role.GRAPHIC}},
+		{'displayName': Role.STATUSBAR.displayString, 'scriptName': 'StatusBar', 'key': 'z', 'walker': quickNavWalker(UIAHandler.UIA_StatusBarControlTypeId), "roles": {Role.STATUSBAR}},
+		{'displayName': Role.GROUPING.displayString, 'scriptName': 'Grouping', 'key': 'u', 'walker': quickNavWalker(UIAHandler.UIA_GroupControlTypeId), "rroles": {Role.GROUPING}},
+		{'displayName': _("menu, menu bar or menu item"), 'scriptName': 'Menu', 'key': 'm', 'walker': createMenuWalker(), "roles": {i for i in Role if "menu".lower() in i.name.lower()}},
+		{'displayName': _("tree or tree item"), 'scriptName': 'Tree', 'key': 'v', 'walker': createTreeWalker(), "roles": {i for i in Role if "tree".lower() in i.name.lower()}},
+		{'displayName': _("tab or tab item"), 'scriptName': 'Tab', 'key': 'q', 'walker': createTabWalker(), "roles": {i for i in Role if "tab".lower() in i.name.lower()}},
+		{'displayName': _("form field"), 'scriptName': 'FormField', 'key': 'f', 'walker': createFormFieldWalker(), "roles": {Role.BUTTON, Role.CHECKBOX, Role.RADIOBUTTON, Role.EDITABLETEXT, Role.COMBOBOX, Role.TAB}},
+		{'displayName': _("focusable object"), 'scriptName': 'focusable', 'key': 'j', 'walker': createFocusableWalker(), "shouldInclude": lambda obj: obj.isFocusable},
+		{'displayName': _("Landmark").lower(), 'scriptName': 'Landmark', 'key': 'n', 'walker': createLandmarkWalker(), "shouldInclude": lambda obj: obj.landmark},
 		{'displayName': _("same item"), 'scriptName': 'SameItem', 'key': 's', 'walker': createSameItemWalker},
 		# Translators: A rotor option:
 		{"displayName": _("focusable form field"), "scriptName": "focusableFormField", "key": "y", "walker": createFormFieldAndFocusableWalker()}
@@ -1488,7 +1561,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			after2 = _('in the window or control where the navigator object is located, or  every object on the screen, depending on what you have selected in settings')
 			@navigationScript
 			def searchIndividualy(self, gesture, key = key, walker = walker):
-				search(gesture = gesture, walker = walker)
+				search(gesture = gesture, walker = walker, key = key)
 			searchIndividualy.__doc__ = before+middle+after2
 			setattr(cls, 'script_'+scriptName+'List', searchIndividualy)
 		for i in cls.keyList:
@@ -1543,7 +1616,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def event_gainFocus(self, obj, nextHandler):
 		if isinstance(obj, Search):
 			return(nextHandler())
-		if not config.conf["enhancedObjectNavigation"]["useByDefault"] or not isinstance(obj, window.Window):
+		if not config.conf["enhancedObjectNavigation"]["useByDefault"] or not isinstance(obj, window.Window) or ObjectList._instances.data:
 			self.turnOff()
 			return(nextHandler())
 		if isinstance(obj, cursorManager.CursorManager):
