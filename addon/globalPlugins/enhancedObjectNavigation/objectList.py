@@ -40,22 +40,23 @@ def _recoverFromSearch():
 class ObjectList(gui.SettingsDialog):
 	# Translators: The title of the search dialog
 	title = _("Search")
-	def _getListInformation(self, obj: "NVDAObject") -> list:
+	def _getListInformation(self, obj):
+		from . import validateObject, getGlobalPluginInstance
+		validation = self.getRotorOption()
 		#now = time.time()
 		global searching
 		listInfo = []
 		objectList = []
-		allowedPresentationTypes = obj.presType_content, obj.presType_layout, obj.presType_unavailable
-		if config.conf["reviewCursor"]["simpleReviewMode"]:
-			allowedPresentationTypes = (obj.presType_content),
 		searching = True
 		#threading.Thread(target = _recoverFromSearch).start()
+		
 		for i in obj.recursiveDescendants:
 			#if ctypes.windll.user32.GetKeyState(winUser.VK_LCONTROL) > 1 and time.time()-now > 10: # The left control key is held down and we have searched for at least 10 seconds, to allow the user to release the control key first
 				#searching = False
 				#return
-			if i in objectList or i.presentationType not in allowedPresentationTypes:
+			if i in objectList or not validateObject(i, validation = validation):
 				continue
+			objectList.append(i)
 			role = i.roleText
 			if not role:
 				role = i.role.displayString
@@ -63,24 +64,38 @@ class ObjectList(gui.SettingsDialog):
 			if name is None:
 				name = ""
 			listInfo.append((name, role, i))
-			objectList.append(i)
-		searching = False
 		return(listInfo)
-
-	def __init__(self,  *args, obj: "NVDAObject" = None, startObj: "NVDAObject" = None, key = None, **kwargs):
+	def setAlive(self):
+		while self.searching:
+			watchdog.alive()
+	def getRotorOption(self):
+		from . import getGlobalPluginInstance
+		plugin = getGlobalPluginInstance()
+		key = self.key
+		#key = "b"
+		for i in plugin.rotor:
+			if key and i.get("key") == key:
+				return(i)
+	def __init__(self,  *args, obj: "NVDAObject" = None, startObj: "NVDAObject" = None, key = None, wasInNavigationMode = False, **kwargs):
 		global searching
 		self.objectList = []
 		self.startObj = startObj
 		self.key = key
+		self.wasInNavigationMode = wasInNavigationMode
+		self.searching = True
+		# If the getListInformation call takes too long, NVDA may think that the core is frozen, thus restoring it, canceling the call in the process
+		# Do not use watchdog.Suspender, as it causes problems with fetching the name from sysListView32 controls within the NVDA process.
+		# Instead, do the following
+		threading.Thread(target = self.setAlive, daemon = True).start()
 		try:
-			with watchdog.Suspender():
-				self.objectList = self._getListInformation(obj)
+			self.objectList = self._getListInformation(obj)
 		except Exception as ex:
 			log.error(ex)
-			return
+			self.searching = False
+		self.searching = False
 		if not config.conf["enhancedObjectNavigation"]["sortInTabOrder"]:
 			def sort(key):
-				return(key[0])
+				return(key[0].lower())
 			self.objectList.sort(key = sort)
 		self.filteredObjectList = self.objectList.copy()
 		self.displayNames = []
@@ -95,7 +110,7 @@ class ObjectList(gui.SettingsDialog):
 		label = _("Filter by &control type")
 		self.roleFilter = sizer.addLabeledControl(label, wx.TextCtrl)
 		self.roleFilter.Bind(wx.EVT_TEXT, self.onTextChange)
-		sizer.sizer.AddSpacer(guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS)
+		
 		# Translators: The label for an edit control in the object list dialog
 		label = _("Filter by n&ame")
 		self.nameFilter = sizer.addLabeledControl(label, wx.TextCtrl)
@@ -116,18 +131,25 @@ class ObjectList(gui.SettingsDialog):
 			for i in enumerate(self.objectList):
 				if i[1][2] == startObj:
 					focusIndex = i[0]
-		self.list.SetSelection(focusIndex)
+		if self.objectList:
+			self.list.SetSelection(focusIndex)
 	def postInit(self):
 		self.nameFilter.SetFocus()
 	def onOk(self, evt):
 		if not self.filteredObjectList:
 			return
-		speech.cancelSpeech()
+		if self.wasInNavigationMode:
+			config.conf["enhancedObjectNavigation"]["useByDefault"] = True
 		index = self.list.GetSelection()
 		try:
 			wx.CallLater(100, self.moveCursor, index)
 		finally:
 			super(ObjectList, self).onOk(evt)
+	def onCancel(self, evt):
+		if self.wasInNavigationMode:
+			config.conf["enhancedObjectNavigation"]["useByDefault"] = True
+		super(ObjectList, self).onOk(evt)
+
 	def onTextChange(self, evt: wx.Event):
 		nameText = self.nameFilter.GetValue()
 		roleText = self.roleFilter.GetValue().lower()
@@ -189,11 +211,18 @@ class ObjectList(gui.SettingsDialog):
 
 
 	def moveCursor(self, index):
-		from . import handleMoveToUIA, handleMoveBrowseModeCursor, handleMoveFocusIfFailed
+		
+		from . import handleMoveToUIA, handleMoveBrowseModeCursor, handleMoveFocusIfFailed, shouldUseUIAWhenNavigating
+		speech.cancelSpeech()
 		obj = self.filteredObjectList[index][2]
-		if config.conf["enhancedObjectNavigation"]["useByDefault"]:
-			handleMoveToUIA(obj, shouldCreateUIAObject = True)
-			return
+		if self.wasInNavigationMode:
+			if shouldUseUIAWhenNavigating(obj):
+				handleMoveToUIA(obj, shouldCreateUIAObject = True)
+			else:
+				api.setNavigatorObject(obj)
+				#speech.cancelSpeech()
+				speech.speakObject(obj, reason = controlTypes.OutputReason.FOCUS)
+			return	
 		if obj.treeInterceptor and isinstance(obj.treeInterceptor, browseMode.BrowseModeTreeInterceptor):
 			handleMoveBrowseModeCursor(obj)
 			return()
@@ -217,13 +246,19 @@ class ObjectList(gui.SettingsDialog):
 
 class UIAObjectList(ObjectList):
 	def _getListInformation(self, obj: "NVDAObject") -> list:
+		from . import simpleWalker, getSearchableElement
 		clientObject = UIAHandler.handler.clientObject
-		UIAElement = clientObject.ElementFromHandle(obj.windowHandle)
-		condition = clientObject.RawViewCondition
-		if config.conf["reviewCursor"]["simpleReviewMode"]:
-			controlViewCondition = clientObject.ControlViewCondition
-			contentViewCondition = clientObject.contentViewCondition
-			condition = clientObject.CreateAndCondition(contentViewCondition, controlViewCondition)
+		#UIAElement = clientObject.ElementFromHandle(obj.windowHandle)
+		UIAElement = getSearchableElement()
+		
+		condition = simpleWalker().Condition
+		option = self.getRotorOption()
+		if option:
+			otherCondition = self.getRotorOption().get("walker")
+			if hasattr(otherCondition, "__call__"):
+				otherCondition = otherCondition()
+			otherCondition = otherCondition.Condition
+			condition = clientObject.CreateAndCondition(condition, otherCondition)
 		
 		elementList = UIAElement.FindAllBuildCache(
 			UIAHandler.TreeScope_Descendants,
@@ -244,11 +279,12 @@ class UIAObjectList(ObjectList):
 		return(listInfo)
 
 	def moveCursor(self, index):
-		from . import handleMoveToUIA, NewUIA
+		from . import handleMoveToUIA, NewUIA, shouldUseUIAWhenNavigating
+		speech.cancelSpeech()
 		element = self.filteredObjectList[index][2]
 		element = element.BuildUpdatedCache(UIAHandler.handler.baseCacheRequest)
 		obj = NewUIA(UIAElement = element)
-		handleMoveToUIA(obj)
+		handleMoveToUIA(obj, shouldCreateUIAObject = shouldUseUIAWhenNavigating(obj))
 
 	def moveNavigatorObject(self, index: int):
 		clientObject = UIAHandler.handler.clientObject
