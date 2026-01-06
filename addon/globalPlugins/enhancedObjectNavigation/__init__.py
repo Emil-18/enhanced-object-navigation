@@ -145,7 +145,7 @@ class EnhancedObjectNavigationSettingsPanel(gui.SettingsPanel):
 		self.altMode = virtualGroupHelper.addItem(wx.CheckBox(self.virtualGroupBox, label = label))
 		self.altMode.SetValue(config.conf['enhancedObjectNavigation']['altMode'])
 		# Translators: a label for a group
-		label = _("Settings for the search dialog")
+		label = _("Settings for the physical search list")
 
 		dialogGroupSizer = wx.StaticBoxSizer(wx.VERTICAL, self, label = label)
 		self.dialogGroupBox = dialogGroupSizer.GetStaticBox()
@@ -161,7 +161,7 @@ class EnhancedObjectNavigationSettingsPanel(gui.SettingsPanel):
 		self.regex = dialogGroupHelper.addItem(wx.CheckBox(self.dialogGroupBox, label = label))
 		self.regex.SetValue(config.conf["enhancedObjectNavigation"]["regex"])
 		# Translators: The label for a check box
-		label = _('When in navigation mode or in the search list, automatically update the braille display when the content of the shown object changes. Disable if you encounter problems using the add-on, such as lag.')
+		label = _("When in navigation mode or in the search list, automatically update the braille display when the content of the shown object changes. Disable if you encounter problems using the add-on, such as lag")
 		self.autoUpdate = settings.addItem(wx.CheckBox(self, label = label))
 		self.autoUpdate.SetValue(config.conf['enhancedObjectNavigation']['autoUpdate'])
 		# Translators: The label for a check box
