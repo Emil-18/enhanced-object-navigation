@@ -1,7 +1,7 @@
 # Forbedret objektnavigering.
 * Forfatter: Emil-18.
 * NVDA-kompatibilitet: 2024.1 og utover.
-* Last ned: [Stabil versjon](https://github.com/Emil-18/enhanced-object-navigation/releases/download/v0.3/enhancedObjectNavigation-0.3.nvda-addon).
+* Last ned: [Stabil versjon](https://github.com/Emil-18/enhanced-object-navigation/releases/download/v0.3.1/enhancedObjectNavigation-0.3.1.nvda-addon).
 
 Dette tillegget legger til forbedringer i objektnavigasjon. [Les dette hvis du ikke vet hva objektnavigasjon er eller hvordan du bruker det](https://afb.org/aw/fall2025/nvda-object-navigation-getting-started).
 Dette tillegget legger til følgende:
@@ -183,6 +183,10 @@ Når det er merket av, vil navigasjonstasten s med én bokstav bare inkludere ob
 
 
 ## Forandringslogg.
+
+### v1.3.1
+
+* Lagt til kompatibilitet med NVDA 2026.1
 
 ### v0.3
 

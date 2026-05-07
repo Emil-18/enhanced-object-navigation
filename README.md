@@ -1,7 +1,7 @@
 # Enhanced Object Navigation.
 * Author: Emil-18.
 * NVDA compatibility: 2024.1 and beyond.
-* Download: [Stable version](https://github.com/Emil-18/enhanced-object-navigation/releases/download/v0.3/enhancedObjectNavigation-0.3.nvda-addon).
+* Download: [Stable version](https://github.com/Emil-18/enhanced-object-navigation/releases/download/v0.3.1/enhancedObjectNavigation-0.3.1.nvda-addon).
 
 This add-on adds improvements to object navigation. [Read this if you don't know what object navigation is or how to use it](https://afb.org/aw/fall2025/nvda-object-navigation-getting-started).
 This add-on adds the following:
@@ -186,6 +186,10 @@ When checked, the s single letter navigation key will include only objects that 
 
 
 ## Change log.
+
+### v0.3.1
+
+* Added compatibility with NVDA 2026.1
 
 ### v0.3
 
